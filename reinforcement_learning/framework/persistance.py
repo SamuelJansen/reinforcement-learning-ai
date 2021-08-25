@@ -24,7 +24,7 @@ class MongoDB:
         self.collection = ReflectionHelper.getAttributeOrMethod(self.client, self.databaseName)
 
     def persistActionTable(self, agent: Agent):
-        log.debug(self.persistActionTable, f'Persiting {ReflectionHelper.getClassName(agent)} action table')
+        log.debug(self.persistActionTable, f'Persiting {ReflectionHelper.getClassName(agent)} {agent.getKey()} action table')
         try:
             for stateHash, stateAction in agent.getActionTable().items():
                 self.collection[self.databaseName].save(
@@ -49,12 +49,12 @@ class MongoDB:
             #         upsert=True
             #     )
         except Exception as exception:
-            log.error(self.persistActionTable, f'Not possible to persit {ReflectionHelper.getClassName(agent)} action table', exception)
+            log.error(self.persistActionTable, f'Not possible to persit {ReflectionHelper.getClassName(agent)} {agent.getKey()} action table', exception)
             return None
-        log.debug(self.persistActionTable, f'{ReflectionHelper.getClassName(agent)} action table persisted')
+        log.debug(self.persistActionTable, f'{ReflectionHelper.getClassName(agent)} {agent.getKey()} action table persisted')
 
     def loadActionTable(self, agent: Agent):
-        log.debug(self.persistActionTable, f'Loading {ReflectionHelper.getClassName(agent)} action table')
+        log.debug(self.persistActionTable, f'Loading {ReflectionHelper.getClassName(agent)} {agent.getKey()} action table')
         try:
             agent.setActionTable(
                 Dictionary({
@@ -62,7 +62,7 @@ class MongoDB:
                         AgentConstants.ID: element[AgentConstants.ID_DB_KEY],
                         AgentConstants.ACTIONS : List([
                             {
-                                AgentConstants.ACTION : self.convertToAction(action[AgentConstants.ACTION_DB_KEY]),
+                                AgentConstants.ACTION : self.convertFromDbActionToAgentAction(action[AgentConstants.ACTION_DB_KEY]),
                                 AgentConstants.ACTION_VALUE : action[AgentConstants.ACTION_VALUE_DB_KEY],
                                 AgentConstants.ACTION_VISITS : action[AgentConstants.ACTION_VISITS_DB_KEY]
                             } for action in element[AgentConstants.ACTIONS_DB_KEY]
@@ -71,14 +71,13 @@ class MongoDB:
                 })
             )
         except Exception as exception:
-            log.error(self.persistActionTable, f'Not possible to loat {ReflectionHelper.getClassName(agent)} action table', exception)
+            log.error(self.persistActionTable, f'Not possible to loat {ReflectionHelper.getClassName(agent)} {agent.getKey()} action table', exception)
             return None
-        log.debug(self.persistActionTable, f'{ReflectionHelper.getClassName(agent)} action table loaded')
+        log.debug(self.persistActionTable, f'{ReflectionHelper.getClassName(agent)} {agent.getKey()} action table loaded')
 
-
-    def convertToAction(self, action):
-        # print(action)
-        # print(tuple(action))
+    def convertFromDbActionToAgentAction(self, action):
+        if ObjectHelper.isNotCollection(action) or ObjectHelper.isCollection(action) and 1 == len(action):
+            return Action([tuple(action)])
         return Action([tuple(*action)])
 
 

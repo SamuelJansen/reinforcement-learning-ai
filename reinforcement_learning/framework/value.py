@@ -1,3 +1,4 @@
+import numpy as np
 from operator import itemgetter
 from python_helper import Constant as c
 from python_helper import ObjectHelper, ReflectionHelper
@@ -105,24 +106,42 @@ class List(list, Value):
         return not self.__eq__(other)
 
 
-# import numpy as np
-# class NpList(type(np.array([])), Value):
-#
-#     def __init__(self, instance=None, validate=True, id=None):
-#         # print(f'instance - list: {instance}')
-#         # print(f'====================== init List, validate: {validate}')
-#         if ObjectHelper.isNone(instance):
-#             instance = list()
-#         validateType(instance, list, validate)
-#         np.array.__init__(self, instance)
-#         Value.__init__(self, instance, id=id)
-#         # print('====================== end List')
-#
-#     def __eq__(self, other):
-#         return super(Value, self).__eq__(other)
-#
-#     def __ne__(self, other):
-#         return not self.__eq__(other)
+class NpArrayList(type(np.array([])), Value):
+
+    def __init__(self, instance=None, validate=True, id=None):
+        # print(f'instance - list: {instance}')
+        # print(f'====================== init List, validate: {validate}')
+        if ObjectHelper.isNone(instance):
+            instance = list()
+        validateType(instance, list, validate)
+        np.array.__init__(self, instance)
+        Value.__init__(self, instance, id=id)
+        # print('====================== end List')
+
+    def __eq__(self, other):
+        return super(Value, self).__eq__(other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+
+class NpNdArrayList(type(np.ndarray([])), Value):
+
+    def __init__(self, instance=None, validate=True, id=None):
+        # print(f'instance - list: {instance}')
+        # print(f'====================== init List, validate: {validate}')
+        if ObjectHelper.isNone(instance):
+            instance = list()
+        validateType(instance, list, validate)
+        np.ndarray.__init__(self, instance)
+        Value.__init__(self, instance, id=id)
+        # print('====================== end List')
+
+    def __eq__(self, other):
+        return super(Value, self).__eq__(other)
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
 
 class Dictionary(dict, Value):

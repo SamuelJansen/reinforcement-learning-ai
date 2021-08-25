@@ -105,8 +105,9 @@ class Agent(Object):
 
     def printActionTable(self):
         actionTable = self.actionTable.getCopy()
+        log.prettyPython(self.printActionTable, 'actionTable', actionTable, logLevel=log.DEBUG)
         for k, v in {**actionTable}.items():
-            actionTable[k] = valueModule.sortedBy(v, AgentConstants.ACTION_VALUE)
+            actionTable[k] = valueModule.sortedBy(v[AgentConstants.ACTIONS], AgentConstants.ACTION_VALUE)
         log.prettyPython(self.printActionTable, 'q(s,a)', actionTable, logLevel=log.DEBUG)
         log.debug(self.printActionTable, f'size: {len(self.actionTable)}')
 
