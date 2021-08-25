@@ -76,7 +76,7 @@ class MongoDB:
         log.debug(self.persistActionTable, f'{ReflectionHelper.getClassName(agent)} {agent.getKey()} action table loaded')
 
     def convertFromDbActionToAgentAction(self, action):
-        if ObjectHelper.isNotCollection(action) or ObjectHelper.isCollection(action) and 1 == len(action):
+        if ObjectHelper.isNotCollection(action) or (ObjectHelper.isCollection(action) and 1 == len(action)):
             return Action([tuple(action)])
         return Action([tuple(*action)])
 
