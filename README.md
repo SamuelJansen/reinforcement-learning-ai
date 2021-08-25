@@ -1,2 +1,2 @@
-# tic-tac-toe-ai-model
-A tic-tac-toe Ai model
+# reinforcement-learning-ai
+Reinforcement Learning Ai Models
