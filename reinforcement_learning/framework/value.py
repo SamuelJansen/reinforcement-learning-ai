@@ -31,6 +31,7 @@ class Value(Object):
         # print(f'getting copy of {instance}')
         self.__original__ = None ###- self.__makeCopy__(instance, validate=False)
         # print('yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy')
+        ### - did not work self.__hash__ = str(self.__ai_hash__)
 
     def getCopy(self):
         return self.__makeCopy__(self, validate=True)
@@ -161,6 +162,18 @@ class Dictionary(dict, Value):
     def __ne__(self, other):
         return not self.__eq__(other)
 
+    def __lt__(self, other):
+        return self.__id__ < other.__id__
+
+    def __le__(self, other):
+        return self.getId() <= other.__id__
+
+    def __gt__(self, other):
+        return self.getId() > other.__id__
+
+    def __ge__(self, other):
+        return self.__id__ >= other.__id__
+
 
 VALUE_IMPLEMENTATIONS = {
     getSimpleName(set): Set,
@@ -256,7 +269,7 @@ def isImplementation(instance):
 
 
 
-# Test
+###- Test
 # a_b_c = Tuple((
 #     List([
 #         Dictionary({
@@ -311,8 +324,16 @@ def isImplementation(instance):
 #     ])
 # ))
 # a_b_cCopy = a_b_c.getCopy()
-# print(a_b_c == a_b_cCopy)
+# print(a_b_c.__ai_hash__)
+# print(a_b_cCopy.__ai_hash__)
+# print(a_b_c.__ai_hash__ == a_b_cCopy.__ai_hash__)
+# print(a_b_c.getHash())
+# print(a_b_cCopy.getHash())
+# print(a_b_c.getHash() == a_b_cCopy.getHash())
+# # print(a_b_c.getHash(), a_b_cCopy.getHash())
+# assert a_b_c == a_b_cCopy, 'a_b_c == a_b_cCopy should be equals'
 # a_b_cCopy[0][0]['1'].add(None)
+# ###- assert not a_b_c == a_b_cCopy, 'a_b_c == a_b_cCopy after added None should not be equals'
 # print(a_b_c == a_b_cCopy)
 #
 # print(isinstance(dict(), Dictionary))

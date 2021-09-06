@@ -19,8 +19,8 @@ class RandomAgent(Agent):
     def __init__(self, *args, **kwargs):
         Agent.__init__(self, *args, **kwargs)
 
-    def getAction(self, state: State, possibleActions: List):
-        return RandomHelper.sample(possibleActions)
+    def getAction(self, state: State, possibleActions: List) -> tuple:
+        return List(), RandomHelper.sample(possibleActions)
 
     def _update(self, history: History, reward: Reward, isFinalState: bool):
         ...
@@ -30,13 +30,13 @@ class MonteCarloEpisodeAgent(Agent):
     def __init__(self, *args, **kwargs):
         Agent.__init__(self, *args, **kwargs)
 
-    def getAction(self, state: State, possibleActions: List):
-        # print('agent getting action')
+    def getAction(self, state: State, possibleActions: List, showActionChoice=False) -> tuple:
+        # print('agent getting action');
         if self.exploration > RandomHelper.integer(minimum=0, maximum=100) / 100:
-            return RandomHelper.sample(possibleActions)
+            return List(), RandomHelper.sample(possibleActions)
         # actionTable = self.getActionTable()
         stateHash: str = state.getHash()
-        visits = self.actionTable.get(stateHash, self.getDefaultStateActions())[AgentConstants.ACTIONS]
+        visits = self.actionTable.get(stateHash, self._getDefaultStateActions())[AgentConstants.ACTIONS]
         actionList = [
             visit[AgentConstants.ACTION] for visit in sorted(visits, key=itemgetter(AgentConstants.ACTION_VALUE)) if visit[AgentConstants.ACTION].getHash() in [
                 action.getHash() for action in possibleActions
@@ -46,24 +46,28 @@ class MonteCarloEpisodeAgent(Agent):
             [action for action in possibleActions]
         )
         # print('agent action get')
-        return action.getCopy()
+        return List(visits), action.getCopy()
 
-    def getDefaultStateActions(self):
-        return {
+    def _getDefaultStateActions(self):
+        return Dictionary({
             AgentConstants.ID: getId(),
-            AgentConstants.ACTIONS: []
-        }
+            AgentConstants.ACTIONS: List([])
+        })
 
-    def _update(self, history: History, reward: Reward, isFinalState: bool):
-        # print('agent updating state')
+    def _update(self, history: History, isFinalState: bool):
         if isFinalState:
-            rewardValue = reward.getValue(self.key)
-            for deepnes, event in enumerate(history[::-1]):
+            # print('agent updating state')
+            rewardValue = self._getRewardValue(history)
+            filteredHistory = self._getAgentHistory(history)
+            # print(f'filteredHistory: {filteredHistory}')
+            # print(f'Agent: {self.key}, Reward value: {rewardValue}')
+            for deepnes, event in enumerate(filteredHistory[::-1]):
                 rewardTamed: float = rewardValue * (self.retention**deepnes)
+                # print(f'rewardTamed: {rewardTamed}')
                 # print(self.actionTable)
                 stateHash: str = event.fromState.getHash()
                 if stateHash not in self.actionTable:
-                    self.actionTable[stateHash] = self.getDefaultStateActions()
+                    self.actionTable[stateHash] = self._getDefaultStateActions()
                     self._appendFirstVisit(stateHash, event, rewardTamed)
                 else:
                     visit = self.accessByAction(stateHash, event.action)
@@ -72,13 +76,21 @@ class MonteCarloEpisodeAgent(Agent):
                     else:
                         visit[AgentConstants.ACTION_VISITS] += 1
                         visit[AgentConstants.ACTION_VALUE] += (rewardTamed - visit[AgentConstants.ACTION_VALUE]) / visit[AgentConstants.ACTION_VISITS]
-        # print('agent state updated')
+            # print('agent state updated')
 
     def _appendFirstVisit(self, stateHash: str, event: Event, rewardTamed: float):
         self.actionTable[stateHash][AgentConstants.ACTIONS].append(
-            {
+            Dictionary({
                 AgentConstants.ACTION: event.action,
                 AgentConstants.ACTION_VALUE: rewardTamed,
                 AgentConstants.ACTION_VISITS: 1
-            }
+            })
         )
+
+    def _getAgentHistory(self, history: History) -> History:
+        return History([
+            event for event in history if event.getAgentId() == self.getId()
+        ])
+
+    def _getRewardValue(self, history: History):
+        return history[-1].reward.get(self.key)

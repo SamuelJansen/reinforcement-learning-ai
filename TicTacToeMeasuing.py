@@ -18,14 +18,15 @@ WIN_REWARD: float = MAX_REWARD
 DRAW_REWARD: float = MAX_REWARD ###- MAX_REWARD * 0.75
 DEFAULT_REWARD: float = 0.0
 
-PLAYER_X_VALUE: str = 'X'
-PLAYER_O_VALUE: str = 'O'
+PLAYER_X_KEY: str = 'X'
+PLAYER_O_KEY: str = 'O'
+ENVIRONMENT_KEY = 'TicTacToe'
 
 TOTAL_TRAINNING_ITERATIONS: int = 50
 TRAINNING_BATCH: int = 100
 MEASURING_BATCH: int = 30
 
-# TOTAL_TRAINNING_ITERATIONS: int = 2000
+# TOTAL_TRAINNING_ITERATIONS: int = 20
 # TRAINNING_BATCH: int = 4
 # MEASURING_BATCH: int = 2
 
@@ -46,40 +47,41 @@ SHOW_BOARD_STATES_ON_LAST_GAME: bool = True
 
 
 # agents = {
-#     PLAYER_X_VALUE: RandomAgent(PLAYER_X_VALUE),
-#     PLAYER_O_VALUE: MonteCarloEpisodeAgent(
-#         PLAYER_O_VALUE,
+#     PLAYER_X_KEY: RandomAgent(PLAYER_X_KEY),
+#     PLAYER_O_KEY: MonteCarloEpisodeAgent(
+#         PLAYER_O_KEY,
 #         exploration=DEFAULT_EXPLORATION,
 #         retention=DEFAULT_RETENTION
 #     )
 # }
 agents = {
-    PLAYER_X_VALUE: MonteCarloEpisodeAgent(
-        PLAYER_X_VALUE,
+    PLAYER_X_KEY: MonteCarloEpisodeAgent(
+        PLAYER_X_KEY,
         exploration=DEFAULT_EXPLORATION,
         retention=DEFAULT_RETENTION
     ),
-    PLAYER_O_VALUE: MonteCarloEpisodeAgent(
-        PLAYER_O_VALUE,
+    PLAYER_O_KEY: MonteCarloEpisodeAgent(
+        PLAYER_O_KEY,
         exploration=DEFAULT_EXPLORATION,
         retention=DEFAULT_RETENTION
     )
 }
 
 environment: Environment = TicTacToeEnvironmentImpl(
-    agents[PLAYER_X_VALUE],
-    agents[PLAYER_O_VALUE],
+    agents[PLAYER_X_KEY],
+    agents[PLAYER_O_KEY],
     WIN_REWARD,
     DRAW_REWARD,
     DEFAULT_REWARD,
+    ENVIRONMENT_KEY,
     boardSize=BOARD_SIZE,
     initialState=None
 )
 
 results: dict = runTest(
     environment,
-    PLAYER_X_VALUE,
-    PLAYER_O_VALUE,
+    PLAYER_X_KEY,
+    PLAYER_O_KEY,
     agents,
     EXPLORATION_REDUCING_RATIO,
     EXPLORATION_REDUCING_RATIO,
@@ -92,12 +94,10 @@ results: dict = runTest(
     SHOW_BOARD_STATES_ON_BATCH_MEASURING,
     RUN_LAST_GAME,
     SHOW_BOARD_STATES_ON_LAST_GAME
-    , playerXAgentSufix = 'XPlayer'
-    , playerOAgentSufix = 'OPlayer'
 )
 
 # for agent in agents.values():
 #     agent.printActionTable()
 # log.prettyPython(log.debug, 'results', results, logLevel=log.DEBUG)
 
-printGraph('tic tac toe', results)
+printGraph('tic tac toe', results, agents[PLAYER_O_KEY])

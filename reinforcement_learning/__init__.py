@@ -2,7 +2,7 @@ from reinforcement_learning.framework.exception import GlobalException, MethodNo
 from reinforcement_learning.framework import hash
 from reinforcement_learning.framework import value
 from reinforcement_learning.framework.object import Object, Id, getId
-from reinforcement_learning.framework.value import Value, List, Tuple, Set, Dictionary
+from reinforcement_learning.framework.value import Value, NpArrayList, NpNdArrayList, List, Tuple, Set, Dictionary
 from reinforcement_learning.framework.persistance import MongoDB
 
 from reinforcement_learning.ai.action import Action

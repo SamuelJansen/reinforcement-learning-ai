@@ -18,19 +18,26 @@ WIN_REWARD: float = MAX_REWARD
 DRAW_REWARD: float = MIN_REWARD
 DEFAULT_REWARD: float = MIN_REWARD
 
-PLAYER_X_VALUE: str = 'X'
+PLAYER_KEY: str = 'X'
+ENVIRONMENT_KEY = 'GridWorld'
+AGENT_SUFIX = f'{PLAYER_KEY}'
 REWARD_SIMBOL: str = 'R'
+
+# BOARD_SIZE: list = List([3, 3])
+# MAX_EPISODE_HISTORY_LENGHT: int = 2 * BOARD_SIZE[0] * BOARD_SIZE[1]
+# TARGET_POSITIONS: List = List([[2, 2]])
+#
+# TOTAL_TRAINNING_ITERATIONS: int = 200
+# TRAINNING_BATCH: int = 20
+# MEASURING_BATCH: int = 2
 
 BOARD_SIZE: list = List([12, 12])
 MAX_EPISODE_HISTORY_LENGHT: int = 2 * BOARD_SIZE[0] * BOARD_SIZE[1]
+TARGET_POSITIONS: List = List([[11, 11], [9, 11]])
 
-# TOTAL_TRAINNING_ITERATIONS: int = 100
-# TRAINNING_BATCH: int = 100
-# MEASURING_BATCH: int = 6
-
-TOTAL_TRAINNING_ITERATIONS: int = 2
-TRAINNING_BATCH: int = 2
-MEASURING_BATCH: int = 2
+TOTAL_TRAINNING_ITERATIONS: int = 10
+TRAINNING_BATCH: int = 10
+MEASURING_BATCH: int = 6
 
 DEFAULT_EXPLORATION: float = 1 #0.09
 EXPLORATION_REDUCING_RATIO: float = valueModule.getExplorationReducingRatio(DEFAULT_EXPLORATION, 0.05, TOTAL_TRAINNING_ITERATIONS)
@@ -44,12 +51,10 @@ SHOW_BOARD_STATES_ON_BATCH_MEASURING: bool = False
 RUN_LAST_GAME: bool = False
 SHOW_BOARD_STATES_ON_LAST_GAME: bool = False
 
-TARGET_POSITIONS: List = List([[11, 11], [9, 11]])
-
 agents = {
-    # PLAYER_X_VALUE: HumanAgentImpl(PLAYER_X_VALUE),
-    PLAYER_X_VALUE: MonteCarloEpisodeAgent(
-        PLAYER_X_VALUE,
+    # PLAYER_KEY: HumanAgentImpl(PLAYER_KEY),
+    PLAYER_KEY: MonteCarloEpisodeAgent(
+        PLAYER_KEY,
         exploration=DEFAULT_EXPLORATION,
         retention=DEFAULT_RETENTION
     )
@@ -58,6 +63,7 @@ environment: Environment = SquareGridEnvironmentImpl(
     WIN_REWARD,
     DRAW_REWARD,
     DEFAULT_REWARD,
+    ENVIRONMENT_KEY,
     initialState=None,
     boardSize=BOARD_SIZE,
     targetPositions=TARGET_POSITIONS
@@ -65,7 +71,7 @@ environment: Environment = SquareGridEnvironmentImpl(
 results: dict = runTest(
     environment,
     MAX_EPISODE_HISTORY_LENGHT,
-    PLAYER_X_VALUE,
+    PLAYER_KEY,
     agents,
     EXPLORATION_REDUCING_RATIO,
     TOTAL_TRAINNING_ITERATIONS,
@@ -81,4 +87,4 @@ results: dict = runTest(
 #     agent.printActionTable()
 # log.prettyPython(log.debug, 'results', results, logLevel=log.DEBUG)
 
-printGraph('Grid world', results)
+printGraph('Grid world', results, agents[PLAYER_KEY])

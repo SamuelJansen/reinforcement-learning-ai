@@ -8,6 +8,9 @@ class History(List):
     def __init__(self, history: List = None, id: Id = None):
         List.__init__(self, history, id=id)
 
+    def asJson(self):
+        return [event.asJson() for event in self]
+
     def __eq__(self, other):
         return super(List, self).__eq__(other)
 

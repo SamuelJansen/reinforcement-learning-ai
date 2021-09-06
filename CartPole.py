@@ -50,7 +50,7 @@ class CartPoleV1EnvironmentImpl(Environment):
         # print(fromState, action, toState)
         self.setState(toState)
         isFinalState: bool = self.isFinalState(state=toState, isEpisodeMaxHistoryLenght=willBeEpisodeMaxHistoryLenght)
-        reward: Reward = self.getReward(fromState, toState, agents, isFinalState)
+        reward: Reward = self.getReward(fromState, toState, agents, isFinalState, willBeEpisodeMaxHistoryLenght)
         # print(f'isFinalState: {isActualyFinalState}')
         # print('updating state finished')
         return toState, reward, isFinalState
@@ -61,25 +61,41 @@ class CartPoleV1EnvironmentImpl(Environment):
         else:
             self.gymState, self.gymReward, self.gymDone, self.gymInfo = self.gymEnvironment.step(self.gymEnvironment.action_space.sample())
 
-    def nextState(self):
+    def prepareNextState(self):
         ...
 
-    def getReward(self, fromState: State, toState: State, agents: Dictionary, isFinalState: bool) -> Reward:
+    def getReward(self, fromState: State, toState: State, agents: Dictionary, isFinalState: bool, isEpisodeMaxHistoryLenght: bool) -> Reward:
         # print('getting reward')
         # print(f"Agents: {agents}")
         # self._validateNotFinished(fromState)
         # print('getting reward finished')
-        return Reward({k: self.gymReward for k, v in agents.items()})
+
+        # print(Reward({
+        #     k: float(self.gymReward) if self.finalStateReached else float(0.0) for k, v in agents.items()
+        # }))
+        reward: Reward = Reward({
+            k: float(self.gymReward) if (
+                isEpisodeMaxHistoryLenght
+            ) or (
+                isEpisodeMaxHistoryLenght and isFinalState
+            ) or (
+                not isFinalState
+            ) else float(0.0) for k, v in agents.items()
+        })
+        # print(f'      ---> reward: {reward}, isFinalState: {isFinalState}, isEpisodeMaxHistoryLenght: {isEpisodeMaxHistoryLenght}')
+        return reward
 
     def isFinalState(self, state: State = None, isEpisodeMaxHistoryLenght: bool = None) -> bool:
-        # print('is final state')
-        return bool(self.gymDone)
+        self.finalStateReached: bool = self.finalStateReached or bool(self.gymDone) or (
+            bool(False if ObjectHelper.isNone(isEpisodeMaxHistoryLenght) else isEpisodeMaxHistoryLenght)
+        )
+        # print(f'      ---> is final state: {bool(self.finalStateReached)}')
+        return bool(self.finalStateReached)
 
-    def printState(self, lastAction: Action, data: str = c.BLANK):
-        state: State = self.getState()
-        # print(state)
-        print(f'{c.NEW_LINE}State: {state.getId()}')
-        print(f'- Action: {lastAction}{c.NEW_LINE}')
+    def printState(self, data: str = c.BLANK):
+        print(f'{c.NEW_LINE} {self.key}')
+        if StringHelper.isNotBlank(data) :
+            print(data)
         self.gymEnvironment.render()
         # print('end of print state')
 
@@ -90,3 +106,4 @@ class CartPoleV1EnvironmentImpl(Environment):
     def _reset(self):
         self.gymEnvironment.reset()
         self._stepFoward()
+        self.finalStateReached: bool = False

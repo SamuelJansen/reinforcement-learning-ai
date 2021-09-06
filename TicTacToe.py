@@ -75,7 +75,7 @@ class TicTacToeEnvironmentImpl(Environment):
                     possibleActions.append(Action([(h, v, self.playerTurnKey)]))
         return possibleActions
 
-    def updateState(self, action: Action, agents: List, isEpisodeMaxHistoryLenght: bool = False) -> tuple:
+    def updateState(self, action: Action, agents: List, willBeEpisodeMaxHistoryLenght: bool) -> tuple:
         fromState = self.getState()
         self._validateGameNotFinished(fromState)
         if ObjectHelper.isNotNone(action):
@@ -86,15 +86,15 @@ class TicTacToeEnvironmentImpl(Environment):
                 toState[actionValue[0]][actionValue[1]] = actionValue[2]
         toState.updateHash()
         self.setState(toState)
-        isFinalState: bool = self.isFinalState(state=toState, isEpisodeMaxHistoryLenght=isEpisodeMaxHistoryLenght)
-        reward: Reward = self.getReward(fromState, toState, agents, isFinalState)
-        # print(f'toState: {toState}, reward.value: {reward.value}, isFinalState: {isFinalState}') if isFinalState else None
+        isFinalState: bool = self.isFinalState(state=toState, isEpisodeMaxHistoryLenght=willBeEpisodeMaxHistoryLenght)
+        reward: Reward = self.getReward(fromState, toState, agents, isFinalState, willBeEpisodeMaxHistoryLenght)
+        # print(f'toState: {toState}, reward: {reward}, isFinalState: {isFinalState}') if isFinalState else None
         return toState, reward, isFinalState
 
-    def nextState(self):
+    def prepareNextState(self):
         self.playerTurnKey = self.nextPlayerTurn.get(self.playerTurnKey)
 
-    def getReward(self, fromState: State, toState: State, agents: List, isFinalState: bool) -> Reward:
+    def getReward(self, fromState: State, toState: State, agents: List, isFinalState: bool, isEpisodeMaxHistoryLenght: bool) -> Reward:
         winner = self._getWinner(toState)
         self._validateGameNotFinished(fromState)
         if isFinalState:
@@ -111,12 +111,11 @@ class TicTacToeEnvironmentImpl(Environment):
             ObjectHelper.isNotNone(self._getWinner(self.state if ObjectHelper.isNone(state) else state))
         )
 
-    def printState(self, lastAction: Action, data=c.BLANK):
-        state = self.getState()
+    def printState(self, data=c.BLANK):
         horizontalSeparator = StringHelper.join([self.HORIZONTAL_BOARD_SEPARATOR * self.valueSpacement for _ in range(len(self.state))], character=f'{self.HORIZONTAL_BOARD_SEPARATOR * len(self.VERTICAL_BOARD_SEPARATOR)}')
-        print(f'{c.NEW_LINE}State: {state.getId()}')
-        print(f'- Player turn: {self.playerTurnKey}{f", {data}" if not c.BLANK == data else c.BLANK}')
-        print(f'- Action: {lastAction}{c.NEW_LINE}')
+        if StringHelper.isNotBlank(data) :
+            print(f'{data}')
+        print(f'- Player turn: {self.playerTurnKey}')
         print(StringHelper.join(
             [
                 c.SPACE * (self.valueSpacement + self.margin),
@@ -127,10 +126,10 @@ class TicTacToeEnvironmentImpl(Environment):
         print(StringHelper.join(
             [
                 StringHelper.join([
-                    f'{str(valueModule.indexOf(row, state)).center(self.valueSpacement + self.margin)}',
+                    f'{str(valueModule.indexOf(row, self.state)).center(self.valueSpacement + self.margin)}',
                     StringHelper.join([f'{str(value).center(self.valueSpacement)}' for value in row], character=self.VERTICAL_BOARD_SEPARATOR),
                     c.NEW_LINE
-                ]) for row in state
+                ]) for row in self.state
             ],
             character=f'{c.BLANK.center(self.valueSpacement + self.margin)}{horizontalSeparator}{c.NEW_LINE}'
         ))

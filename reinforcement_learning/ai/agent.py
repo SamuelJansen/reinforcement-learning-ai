@@ -33,7 +33,7 @@ class Agent(Object):
     def __init__(
         self,
         key: str,
-        actionTable: Dictionary = None,
+        actionTable: dict = None,
         exploration: float = 0.0,
         retention: float = 1.0,
         id: Id = None
@@ -54,7 +54,7 @@ class Agent(Object):
         """
         Object.__init__(self, id=id)
         self.key = key
-        self.actionTable = Dictionary() if ObjectHelper.isEmpty(actionTable) else Dictionary(actionTable)
+        self.setActionTable({} if ObjectHelper.isEmpty(actionTable) else actionTable)
         self.exploration = exploration
         self.retention = retention
         self.activateAgentUpdate()
@@ -65,16 +65,18 @@ class Agent(Object):
     def getKey(self) -> str:
         return str(self.key)
 
-    def setActionTable(self, actionTable: Dictionary):
-        self.actionTable = Dictionary(actionTable).getCopy()
+    def setActionTable(self, actionTable: dict):
+        # self.actionTable = {**actionTable}
+        self.actionTable = actionTable
 
     def getActionTable(self):
-        return self.actionTable.getCopy()
+        # return {**self.actionTable}
+        return self.actionTable
 
     def getDefaultStateActions(self):
         raise MethodNotImplementedException()
 
-    def getAction(self, state: State, possibleActions: List):
+    def getAction(self, state: State, possibleActions: List) -> tuple:
         raise MethodNotImplementedException()
 
     def byPassAgentUpdate(self):
@@ -83,30 +85,39 @@ class Agent(Object):
     def activateAgentUpdate(self):
         self.doUpdate: bool = True
 
-    def update(self, history: History, reward: Reward, isFinalState: bool):
+    def update(self, history: History, isFinalState: bool):
         if self.doUpdate:
-            self._update(history, reward, isFinalState)
+            self._update(history, isFinalState)
 
-    def _update(self, history: History, reward: Reward, isFinalState: bool):
+    def _update(self, history: History, isFinalState: bool):
         raise MethodNotImplementedException()
 
-    def accessByAction(self, givenStateHash: str, action: Action) -> dict:
+    def access(self, givenStateHash: State) -> dict:
         for stateHash, visit in self.actionTable.items():
             if givenStateHash == stateHash:
-                for v in visit[AgentConstants.ACTIONS]:
-                    # print('===========================================================================================')
-                    # print(action)
-                    # print(action.getHash())
-                    # print(v[AgentConstants.ACTION])
-                    # print(v[AgentConstants.ACTION].getHash())
-                    if action.getHash() == v[AgentConstants.ACTION].getHash():
-                        return v
-        return {}
+                return visit
+        return Dictionary()
+
+    def accessByAction(self, stateHash: str, action: Action) -> dict:
+        for v in self.access(stateHash).get(AgentConstants.ACTIONS, List()):
+            if action.getHash() == v[AgentConstants.ACTION].getHash():
+                return v
+        # for stateHash, visit in self.actionTable.items():
+        #     if givenStateHash == stateHash:
+        #         for v in visit[AgentConstants.ACTIONS]:
+        #             # print('===========================================================================================')
+        #             # print(action)
+        #             # print(action.getHash())
+        #             # print(v[AgentConstants.ACTION])
+        #             # print(v[AgentConstants.ACTION].getHash())
+        #             if action.getHash() == v[AgentConstants.ACTION].getHash():
+        #                 return v
+        return Dictionary()
 
     def printActionTable(self):
-        actionTable = self.actionTable.getCopy()
+        actionTable = self.getActionTable()
         log.prettyPython(self.printActionTable, 'actionTable', actionTable, logLevel=log.DEBUG)
-        for k, v in {**actionTable}.items():
+        for k, v in actionTable.items():
             actionTable[k] = valueModule.sortedBy(v[AgentConstants.ACTIONS], AgentConstants.ACTION_VALUE)
         log.prettyPython(self.printActionTable, 'q(s,a)', actionTable, logLevel=log.DEBUG)
         log.debug(self.printActionTable, f'size: {len(self.actionTable)}')

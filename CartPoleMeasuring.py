@@ -12,36 +12,34 @@ from plot import printGraph
 SettingHelper.updateActiveEnvironment(SettingHelper.LOCAL_ENVIRONMENT)
 log.loadSettings()
 
-MAX_REWARD: float = 1.0
-MIN_REWARD: float = 0.0
-WIN_REWARD: float = MAX_REWARD
-DRAW_REWARD: float = MIN_REWARD
-DEFAULT_REWARD: float = MIN_REWARD
+ENVIRONMENT_KEY = 'CartPoleV1'
+AGENT_KEY: str = 'X'
+AGENT_SUFIX = f'{AGENT_KEY}'
 
-PLAYER_X_VALUE: str = 'X'
-REWARD_SIMBOL: str = 'R'
+# MAX_EPISODE_HISTORY_LENGHT: int = 30
+#
+# TOTAL_TRAINNING_ITERATIONS: int = 1000
+# TRAINNING_BATCH: int = 100
+# MEASURING_BATCH: int = 10
 
-BOARD_SIZE: list = List([12, 12])
-MAX_EPISODE_HISTORY_LENGHT: int = 4000
+MAX_EPISODE_HISTORY_LENGHT: int = 20
 
-TOTAL_TRAINNING_ITERATIONS: int = 1000
-TRAINNING_BATCH: int = 100
+TOTAL_TRAINNING_ITERATIONS: int = 800
+TRAINNING_BATCH: int = 10
 MEASURING_BATCH: int = 10
 
 DEFAULT_EXPLORATION: float = 1 #0.09
 EXPLORATION_REDUCING_RATIO: float = valueModule.getExplorationReducingRatio(DEFAULT_EXPLORATION, 0.05, TOTAL_TRAINNING_ITERATIONS)
-DEFAULT_RETENTION: float = 0.9
+DEFAULT_RETENTION: float = 0.95
 ZERO_EXPLORATION_FOR_MEASUREMENT: float = 0.0
 print(f'EXPLORATION_REDUCING_RATIO: {EXPLORATION_REDUCING_RATIO}')
 
 SHOW_BOARD_STATES_ON_BATCH_TRAINNING: bool = False
 SHOW_BOARD_STATES_ON_BATCH_MEASURING: bool = False
 
-RUN_LAST_GAME: bool = True
-SHOW_BOARD_STATES_ON_LAST_GAME: bool = True
+RUN_LAST_GAME: bool = False
+SHOW_BOARD_STATES_ON_LAST_GAME: bool = False
 
-
-AGENT_KEY = 'X'
 
 agents = Dictionary({
     AGENT_KEY: MonteCarloEpisodeAgent(
@@ -51,7 +49,23 @@ agents = Dictionary({
     )
 })
 
-environment = CartPoleV1EnvironmentImpl()
+environment = CartPoleV1EnvironmentImpl(ENVIRONMENT_KEY)
+
+def runSample(measuringBatch):
+    return runTest(
+        environment,
+        MAX_EPISODE_HISTORY_LENGHT,
+        AGENT_KEY,
+        agents,
+        EXPLORATION_REDUCING_RATIO,
+        10,
+        0,
+        False,
+        measuringBatch,
+        True,
+        RUN_LAST_GAME,
+        SHOW_BOARD_STATES_ON_LAST_GAME
+    )
 
 # runNewEpisode(
 #     environment,
@@ -65,7 +79,7 @@ environment = CartPoleV1EnvironmentImpl()
 results: dict = runTest(
     environment,
     MAX_EPISODE_HISTORY_LENGHT,
-    PLAYER_X_VALUE,
+    AGENT_KEY,
     agents,
     EXPLORATION_REDUCING_RATIO,
     TOTAL_TRAINNING_ITERATIONS,
@@ -77,4 +91,22 @@ results: dict = runTest(
     SHOW_BOARD_STATES_ON_LAST_GAME
 )
 
-printGraph('Grid world', results)
+# results: dict = runSample(1)
+
+printGraph('Cart Pole V1', results, agents[AGENT_KEY])
+
+# import gym
+#
+# env = gym.make('CartPole-v1')
+# notDone = True
+# while notDone:
+#     obs = env.reset()
+#     for step in range(100):
+#         action = env.action_space.sample()
+#         print(env.action_space, action)
+#         nobs, reward, done, info = env.step(action)
+#         print(step, nobs, reward, done, info)
+#         env.render()
+#     if reward > 0:
+#         input('done')
+#         notDone = False

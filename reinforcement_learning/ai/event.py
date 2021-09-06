@@ -2,6 +2,7 @@ from python_helper import Constant as c
 from python_helper import ReflectionHelper, ObjectHelper
 
 from reinforcement_learning.framework.object import Object, Id
+from reinforcement_learning.framework.value import List
 
 from reinforcement_learning.ai.action import Action
 from reinforcement_learning.ai.agent import Agent
@@ -16,6 +17,8 @@ class Event(Object):
         self,
         agent: Agent,
         fromState: State,
+        possibleActions: List,
+        agentKnowlege: List,
         action: Action,
         toState: State,
         reward: Reward,
@@ -23,10 +26,23 @@ class Event(Object):
     ):
         self.setAgent(agent)
         self.setFromState(fromState)
+        self.setPossibleActions(possibleActions)
+        self.setAgentKnowlege(agentKnowlege)
         self.setAction(action)
         self.setToState(toState)
         self.setReward(reward)
         Object.__init__(self, id=id)
+
+    def asJson(self):
+        return {
+            'agentKey': self.agent.getKey(),
+            'fromState': self.fromState,
+            'possibleActions': self.possibleActions,
+            'agentKnowlege': self.agentKnowlege,
+            'action': self.action,
+            'toState': self.toState,
+            'reward': self.reward
+        }
 
     def setAgent(self, agent: Agent):
         self.agent = agent
@@ -51,6 +67,26 @@ class Event(Object):
 
     def getOriginalFromState(self):
         return self.__originalFromState__
+
+    def setPossibleActions(self, possibleActions):
+        self.__originalPossibleActions__ = possibleActions
+        self.possibleActions = possibleActions.getCopy()
+
+    def getPossibleActions(self):
+        return self.possibleActions
+
+    def getPossibleActionsId(self):
+        return self.possibleActions.getId()
+
+    def setAgentKnowlege(self, agentKnowlege):
+        self.__originalAgentKnowlege__ = agentKnowlege
+        self.agentKnowlege = agentKnowlege.getCopy()
+
+    def getAgentKnowlege(self):
+        return self.agentKnowlege
+
+    def getAgentKnowlegeId(self):
+        return self.agentKnowlege.getId()
 
     def setAction(self, action: Action):
         self.__originalAction__ = action
@@ -101,6 +137,8 @@ class Event(Object):
         return Event(
             self.getAgent(),
             self.getFromState(),
+            self.getPossibleActions(),
+            self.getAgentKnowlege(),
             self.getAction(),
             self.getToState(),
             self.getReward(),
@@ -108,7 +146,7 @@ class Event(Object):
         )
 
     def __str__(self):
-        return f'{ReflectionHelper.getClassName(self)}({c.NEW_LINE}{c.TAB}id: {self.getId()}{c.NEW_LINE}{c.TAB}- Agent:{self.agent}{c.NEW_LINE}{c.TAB}- From state:{self.fromState}{c.NEW_LINE}{c.TAB}- Action: {self.action}{c.NEW_LINE}{c.TAB}- To state: {self.toState}{c.NEW_LINE}{c.TAB}- Reward: {self.reward})'
+        return f'{ReflectionHelper.getClassName(self)}({c.NEW_LINE}{c.TAB}id: {self.getId()}{c.NEW_LINE}{c.TAB}- Agent:{self.agent}{c.NEW_LINE}{c.TAB}- From state:{self.fromState}{c.NEW_LINE}{c.TAB}- Possible actions:{self.possibleActions}{c.NEW_LINE}{c.TAB}- Agent knowlege:{self.agentKnowlege}{c.NEW_LINE}{c.TAB}- Action: {self.action}{c.NEW_LINE}{c.TAB}- To state: {self.toState}{c.NEW_LINE}{c.TAB}- Reward: {self.reward})'
 
     def __repr__(self):
         return self.__str__()

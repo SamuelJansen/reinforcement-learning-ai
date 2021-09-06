@@ -36,6 +36,8 @@ class Object:
 
     def __eq__(self, other):
         # print(f'here: {other.getId()} == {self.getId()}')
+        # return isinstance(other, Object) and other.getId() == self.getId()
+        # return isinstance(other, Object) and other.getHash() == self.getHash()
         return isinstance(other, Object) and other.getHash() == self.getHash() and other.getId() == self.getId()
 
     def __ne__(self, other):

@@ -29,7 +29,7 @@ def updateAgentExploration(agent: Agent, originalExploration: float, playerXExpl
 def runNewEpisode(
     environment: Environment,
     episodeMaxHistoryLenght: int,
-    playerXKey: str,
+    playerKey: str,
     agents: Dictionary,
     showStates: bool,
     verifyEachIteration: bool = False
@@ -39,17 +39,17 @@ def runNewEpisode(
     episode: Episode = Episode(
         environment,
         agents,
-        history=List(),
+        history=History(),
         maxHistoryLenght=episodeMaxHistoryLenght,
         showStates=showStates
     )
     while not environment.isFinalState(isEpisodeMaxHistoryLenght=episode.isMaxHistoryLenght()):
         # print(f'    exploration: {agents[environment.playerTurnKey].exploration}, retention: {agents[environment.playerTurnKey].retention}')
         # print('before next step')
-        episode.nextSetp(agents[environment.playerTurnKey], environment, data=f'Exploration: {agents[environment.playerTurnKey].exploration}, retention: {agents[environment.playerTurnKey].retention}')
+        episode.nextSetp(agents[environment.playerTurnKey], data=f'Exploration: {agents[environment.playerTurnKey].exploration}, retention: {agents[environment.playerTurnKey].retention}')
         # print('after next step')
     if verifyEachIteration:
-        agents[playerXKey].printActionTable()
+        agents[playerKey].printActionTable()
         input("hit enter to continue")
     return episode
 
@@ -57,7 +57,7 @@ def runNewEpisode(
 def runTest(
     environment: Environment,
     episodeMaxHistoryLenght: int,
-    playerXKey: str,
+    playerKey: str,
     agents: dict,
     playerXExplorationReducingRatio: float,
     totalTrainningIterations: int,
@@ -68,41 +68,45 @@ def runTest(
     runLastGame: bool,
     showBoardStatesOnLastGame: bool
 ):
-    mongoDBXPlayer = MongoDB(ReflectionHelper.getClassName(agents[playerXKey]), 'XPlayer')
-    mongoDBXPlayer.loadActionTable(agents[playerXKey])
+    mongoDBAgent = MongoDB(
+        agents[playerKey],
+        environment
+    )
+    mongoDBAgent.loadActionTable(agents[playerKey])
     results = {}
     for iteration in range(totalTrainningIterations):
         for index in range(trainningBatch):
             episode: Episode = runNewEpisode(
                 environment,
                 episodeMaxHistoryLenght,
-                playerXKey,
+                playerKey,
                 agents,
                 showBoardStatesOnTrainningBatch
             )
+            mongoDBAgent.persistEpisode(episode, muteLogs=True)
             if 0 == index % 10:
-                log.debug(runTest, f'End of episode {iteration*trainningBatch+index}: {episode}. Exploration: {agents[playerXKey].exploration}, retention: {agents[playerXKey].retention}')
+                log.debug(runTest, f'End of episode {iteration*trainningBatch+index}: {episode}. Exploration: {agents[playerKey].exploration}, retention: {agents[playerKey].retention}')
         winCount: int = 0
         loseCount: int = 0
-        originalExploration = prepareAgentForMeasurement(agents[playerXKey])
+        originalExploration = prepareAgentForMeasurement(agents[playerKey])
         measurementEpisodeLenList: list = []
         for index in range(measuringBatch):
-            # print(f'exploration: {agents[playerXKey].exploration}, retention: {agents[playerXKey].retention}')
+            # print(f'exploration: {agents[playerKey].exploration}, retention: {agents[playerKey].retention}')
             measurementEpisode: Episode = runNewEpisode(
                 environment,
                 episodeMaxHistoryLenght,
-                playerXKey,
+                playerKey,
                 agents,
-                showBoardStatesOnMeasuringBatch, ###- if agents[playerXKey].exploration<0.1 else False,
-                verifyEachIteration=False ###- True if agents[playerXKey].exploration<0.1 else False
+                showBoardStatesOnMeasuringBatch, ###- if agents[playerKey].exploration<0.1 else False,
+                verifyEachIteration=False ###- True if agents[playerKey].exploration<0.1 else False
             )
             winner: str = getWinner(environment)
-            if playerXKey == winner:
+            if playerKey == winner:
                 winCount += 1
             else:
                 loseCount += 1
             measurementEpisodeLenList.append(len(measurementEpisode.history))
-        updateAgentExploration(agents[playerXKey], originalExploration, playerXExplorationReducingRatio)
+        updateAgentExploration(agents[playerKey], originalExploration, playerXExplorationReducingRatio)
         results[iteration] = {
             'winCount': winCount
             , 'loseCount': loseCount
@@ -110,15 +114,16 @@ def runTest(
             , 'measurementEpisodeLenList': measurementEpisodeLenList
         }
     if runLastGame:
-        agents[playerXKey].exploration = ZERO_EXPLORATION_FOR_MEASUREMENT
+        originalExploration = prepareAgentForMeasurement(agents[playerKey])
         lastEpisode: Episode = runNewEpisode(
             environment,
             episodeMaxHistoryLenght,
-            playerXKey,
+            playerKey,
             agents,
             showBoardStatesOnLastGame
         )
-        log.debug(runTest, f'Exploration: {agents[playerXKey].exploration}, retention: {agents[playerXKey].retention}')
+        log.debug(runTest, f'Exploration: {agents[playerKey].exploration}, retention: {agents[playerKey].retention}')
         log.debug(runTest, f'len(lastEpisode.history): {len(lastEpisode.history)}')
-    mongoDBXPlayer.persistActionTable(agents[playerXKey])
+        updateAgentExploration(agents[playerKey], originalExploration, playerXExplorationReducingRatio)
+    mongoDBAgent.persistActionTable(agents[playerKey])
     return results

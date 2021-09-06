@@ -22,13 +22,13 @@ class HumanAgentImpl(Agent):
         while True:
             choice = input(f'asdw ({possibleActions}): ')
             if 'a' == choice:
-                return List([(-1, 0, self.key)])
+                return Action([(-1, 0, self.key)])
             if 's' == choice:
-                return List([(0, -1, self.key)])
+                return Action([(0, -1, self.key)])
             if 'd' == choice:
-                return List([(1, 0, self.key)])
+                return Action([(1, 0, self.key)])
             if 'w' == choice:
-                return List([(0, 1, self.key)])
+                return Action([(0, 1, self.key)])
 
     def _update(self, history: History, isFinalState: bool = False):
         ...
@@ -112,7 +112,9 @@ class SquareGridEnvironmentImpl(Environment):
                     if 0 <= currentPosition[0] + h < len(self.state) and 0 <= currentPosition[1] + v < len(self.state[0]) :
                         if self.state[currentPosition[0] + h][currentPosition[1] + v] in [self.EMPTY_STATE_VALUE, self.REWARD_SIMBOL]:
                             possibleActions.append(Action([(h, v, self.playerTurnKey)]))
-        # print(f'possible {possibleActions}')
+        # print(f'fromState: {self.state}')
+        # print(f'currentPosition: {currentPosition}')
+        # print(f'possibleActions [{StringHelper.join([a.getId() + " - " + a.__ai_hash__ + " - " + str(a) for a in possibleActions], character=c.COMA + c.SPACE)}]')
         return possibleActions
 
     def _getCurrentPosition(self, state: State):
@@ -123,9 +125,9 @@ class SquareGridEnvironmentImpl(Environment):
 
     def updateState(self, action: Action, agents: List, willBeEpisodeMaxHistoryLenght: bool) -> tuple:
         # print('updating state')
+        # print(f'action: {action.getId() + " - " + action.__ai_hash__ + " - " + str(action)}{c.NEW_LINE}')
         fromState = self.getState()
         currentPosition = self._getCurrentPosition(fromState)
-        # print(fromState, currentPosition, action])
         self._validateGameNotFinished(fromState)
         if ObjectHelper.isNotNone(action):
             toState: State = State(fromState).getCopy()
@@ -138,15 +140,15 @@ class SquareGridEnvironmentImpl(Environment):
         # print(fromState, action, toState)
         self.setState(toState)
         isFinalState: bool = self.isFinalState(state=toState, isEpisodeMaxHistoryLenght=willBeEpisodeMaxHistoryLenght)
-        reward: Reward = self.getReward(fromState, toState, agents, isFinalState)
+        reward: Reward = self.getReward(fromState, toState, agents, isFinalState, willBeEpisodeMaxHistoryLenght)
         # print(f'isFinalState: {isActualyFinalState}')
         # print('updating state finished')
         return toState, reward, isFinalState
 
-    def nextState(self):
+    def prepareNextState(self):
         self.playerTurnKey = self.nextPlayerTurn.get(self.playerTurnKey)
 
-    def getReward(self, fromState: State, toState: State, agents: List, isFinalState: bool) -> Reward:
+    def getReward(self, fromState: State, toState: State, agents: List, isFinalState: bool, isEpisodeMaxHistoryLenght: bool) -> Reward:
         # print('getting reward')
         # print(f"Agents: {agents}")
         self._validateGameNotFinished(fromState)
@@ -162,13 +164,11 @@ class SquareGridEnvironmentImpl(Environment):
             ObjectHelper.isNotNone(self._getWinner(self.state if ObjectHelper.isNone(state) else state))
         )
 
-    def printState(self, lastAction: Action, data: str = c.BLANK):
-        state: State = self.getState()
-        # print(state)
+    def printState(self, data: str = c.BLANK):
         horizontalSeparator = StringHelper.join([self.HORIZONTAL_BOARD_SEPARATOR * self.valueSpacement for _ in range(len(self.state[0]))], character=f'{self.HORIZONTAL_BOARD_SEPARATOR * len(self.VERTICAL_BOARD_SEPARATOR)}')
-        print(f'{c.NEW_LINE}State: {state.getId()}')
-        print(f'- Player turn: {self.playerTurnKey}{f", {data}" if not c.BLANK == data else c.BLANK}')
-        print(f'- Action: {lastAction}{c.NEW_LINE}')
+        if StringHelper.isNotBlank(data) :
+            print(f'{data}')
+        print(f'- Player turn: {self.playerTurnKey}')
         print(StringHelper.join(
             [
                 c.SPACE * (self.valueSpacement + self.margin),
@@ -179,10 +179,10 @@ class SquareGridEnvironmentImpl(Environment):
         print(StringHelper.join(
             [
                 StringHelper.join([
-                    f'{str(valueModule.indexOf(row, state)).center(self.valueSpacement + self.margin)}',
+                    f'{str(valueModule.indexOf(row, self.state)).center(self.valueSpacement + self.margin)}',
                     StringHelper.join([f'{str(value).center(self.valueSpacement)}' for value in row], character=self.VERTICAL_BOARD_SEPARATOR),
                     c.NEW_LINE
-                ]) for row in state
+                ]) for row in self.state
             ],
             character=f'{c.BLANK.center(self.valueSpacement + self.margin)}{horizontalSeparator}{c.NEW_LINE}'
         ))

@@ -7,7 +7,6 @@ from reinforcement_learning import MonteCarloEpisodeAgent, RandomAgent, Agent, A
 
 
 ZERO_EXPLORATION_FOR_MEASUREMENT: float = 0.0
-AGENT_SUFIX = 'GridWorld'
 
 
 def prepareAgentForMeasurement(agent: Agent) -> float:
@@ -35,14 +34,15 @@ def runNewEpisode(
     episode: Episode = Episode(
         environment,
         agents,
-        history=List(),
+        history=History(),
         maxHistoryLenght=episodeMaxHistoryLenght,
         showStates=showStates
     )
     while not environment.isFinalState(isEpisodeMaxHistoryLenght=episode.isMaxHistoryLenght()):
         # print(f'    exploration: {agents[playerKey].exploration}, retention: {agents[playerKey].retention}')
         # print('before next step')
-        episode.nextSetp(agents[playerKey], environment, data=f'Exploration: {agents[playerKey].exploration}, retention: {agents[playerKey].retention}')
+        episode.nextSetp(agents[playerKey])
+        # print(f'not environment.isFinalState(isEpisodeMaxHistoryLenght=episode.isMaxHistoryLenght()): {not environment.isFinalState(isEpisodeMaxHistoryLenght=episode.isMaxHistoryLenght())}')
         # print('after next step')
     if verifyEachIteration:
         agents[playerKey].printActionTable()
@@ -63,9 +63,13 @@ def runTest(
     showBoardStatesOnMeasuringBatch: bool,
     runLastGame: bool,
     showBoardStatesOnLastGame: bool
+
 ):
-    mongoDBCartPoleV1Agent = MongoDB(ReflectionHelper.getClassName(agents[playerKey]), 'CartPoleV1')
-    mongoDBCartPoleV1Agent.loadActionTable(agents[playerKey])
+    mongoDBAgent = MongoDB(
+        agents[playerKey],
+        environment
+    )
+    mongoDBAgent.loadActionTable(agents[playerKey])
     results = {}
     for iteration in range(totalTrainningIterations):
         for index in range(trainningBatch):
@@ -74,8 +78,9 @@ def runTest(
                 episodeMaxHistoryLenght,
                 playerKey,
                 agents,
-                showBoardStatesOnTrainningBatch
+                showStates=showBoardStatesOnTrainningBatch
             )
+            mongoDBAgent.persistEpisode(episode, muteLogs=True)
             if 0 == index % 10:
                 log.debug(runTest, f'End of episode {iteration*trainningBatch+index}: {episode}. Exploration: {agents[playerKey].exploration}, retention: {agents[playerKey].retention}')
         winCount: int = 0
@@ -89,10 +94,10 @@ def runTest(
                 episodeMaxHistoryLenght,
                 playerKey,
                 agents,
-                showBoardStatesOnMeasuringBatch, ###- if agents[playerKey].exploration<0.1 else False,
+                showStates=showBoardStatesOnMeasuringBatch, ###- if agents[playerKey].exploration<0.1 else False,
                 verifyEachIteration=False ###- True if agents[playerKey].exploration<0.1 else False
             )
-            winner: str = playerKey if len(measurementEpisode.history) > 50 else None
+            winner: str = playerKey if len(measurementEpisode.history) >= episodeMaxHistoryLenght else None
             if playerKey == winner:
                 winCount += 1
             else:
@@ -112,9 +117,9 @@ def runTest(
             episodeMaxHistoryLenght,
             playerKey,
             agents,
-            showBoardStatesOnLastGame
+            showStates=showBoardStatesOnLastGame
         )
         log.debug(runTest, f'Exploration: {agents[playerKey].exploration}, retention: {agents[playerKey].retention}')
         log.debug(runTest, f'len(lastEpisode.history): {len(lastEpisode.history)}')
-    mongoDBCartPoleV1Agent.persistActionTable(agents[playerKey])
+    mongoDBAgent.persistActionTable(agents[playerKey])
     return results
