@@ -1,5 +1,13 @@
 import gym
 
+from python_helper import Constant as c
+from python_helper import ObjectHelper, StringHelper, RandomHelper, log, SettingHelper
+
+from reinforcement_learning import value as valueModule
+from reinforcement_learning import MonteCarloEpisodeAgent, RandomAgent, Agent, Action, Environment, Episode, History, State, Reward, List, Tuple, Set, Dictionary, Id
+from reinforcement_learning import environmentModule
+
+
 # env = gym.make('CartPole-v1')
 # env is created, now we can use it:
 # for episode in range(10):
@@ -12,28 +20,31 @@ import gym
 #         env.render()
 
 
-from python_helper import Constant as c
-from python_helper import ObjectHelper, StringHelper, RandomHelper, log, SettingHelper
-from reinforcement_learning import value as valueModule
-from reinforcement_learning import MonteCarloEpisodeAgent, RandomAgent, Agent, Action, Environment, Episode, History, State, Reward, List, Tuple, Set, Dictionary, Id
-
-CART_POLE_V1 = 'CartPole-v1'
-
-
 class CartPoleV1EnvironmentImpl(Environment):
+
+    ZERO_REWARD: float = float(0.0)
+    CART_POLE_V1 = 'CartPole-v1'
 
     def __init__(
         self,
         *args,
+        agentKey: str = None,
         **kwargs
     ):
         self.__originalArgs__ = [
         ]
         self.__originalKwargs__ = {
         }
-        self.gymEnvironment = gym.make(CART_POLE_V1)
+        self.currentAgentKey: str = agentKey
+        self.gymEnvironment = gym.make(self.CART_POLE_V1)
         self._reset()
         Environment.__init__(self, self._getCurrentStateFromGymState(), *args, **kwargs)
+
+    def setState(self, state: State):
+        self.state = state.getCopy()
+
+    def getCurrentAgentKey(self) -> str:
+        return str(self.currentAgentKey)
 
     def getPossibleActions(self):
         return List([Tuple((n,)) for n in range(self.gymEnvironment.action_space.n)])
@@ -41,18 +52,18 @@ class CartPoleV1EnvironmentImpl(Environment):
     def _getCurrentStateFromGymState(self):
         return State([round(r, 2) for r in self.gymState])
 
-    def updateState(self, action: Action, agents: List, willBeEpisodeMaxHistoryLenght: bool) -> tuple:
-        # print('updating state')
+    def updateState(self, action: Action, episode: environmentModule.ShouldBeEpisode) -> tuple:
         fromState = self.getState()
-        self._validateNotFinished(fromState)
+        self._validateNotFinished(fromState, episode)
+
         self._stepFoward(action=action)
         toState: State = State(self._getCurrentStateFromGymState(), validate=False)
-        # print(fromState, action, toState)
         self.setState(toState)
-        isFinalState: bool = self.isFinalState(state=toState, isEpisodeMaxHistoryLenght=willBeEpisodeMaxHistoryLenght)
-        reward: Reward = self.getReward(fromState, toState, agents, isFinalState, willBeEpisodeMaxHistoryLenght)
-        # print(f'isFinalState: {isActualyFinalState}')
-        # print('updating state finished')
+
+        temp_reward, temp_isFinalState = self.getRewardWhileUpdating(fromState, toState, episode)
+        reward: Reward = temp_reward
+        isFinalState: bool = temp_isFinalState
+
         return toState, reward, isFinalState
 
     def _stepFoward(self, action: Action = None):
@@ -64,46 +75,41 @@ class CartPoleV1EnvironmentImpl(Environment):
     def prepareNextState(self):
         ...
 
-    def getReward(self, fromState: State, toState: State, agents: Dictionary, isFinalState: bool, isEpisodeMaxHistoryLenght: bool) -> Reward:
-        # print('getting reward')
-        # print(f"Agents: {agents}")
-        # self._validateNotFinished(fromState)
-        # print('getting reward finished')
-
-        # print(Reward({
-        #     k: float(self.gymReward) if self.finalStateReached else float(0.0) for k, v in agents.items()
-        # }))
-        reward: Reward = Reward({
+    def getReward(self,
+        fromState: State,
+        toState: State,
+        episode: environmentModule.ShouldBeEpisode,
+        isFinalState: bool,
+        willBeEpisodeMaxHistoryLenghtWhileUpdating: bool = False
+    ) -> Reward:
+        isEpisodeMaxHistoryLenght = episode.isMaxHistoryLenght()
+        return Reward({
             k: float(self.gymReward) if (
-                isEpisodeMaxHistoryLenght
+                isEpisodeMaxHistoryLenght or willBeEpisodeMaxHistoryLenghtWhileUpdating
             ) or (
-                isEpisodeMaxHistoryLenght and isFinalState
+                (isEpisodeMaxHistoryLenght or willBeEpisodeMaxHistoryLenghtWhileUpdating) and isFinalState
             ) or (
                 not isFinalState
-            ) else float(0.0) for k, v in agents.items()
+            ) else float(self.ZERO_REWARD) for k, v in episode.agents.items()
         })
-        # print(f'      ---> reward: {reward}, isFinalState: {isFinalState}, isEpisodeMaxHistoryLenght: {isEpisodeMaxHistoryLenght}')
-        return reward
 
-    def isFinalState(self, state: State = None, isEpisodeMaxHistoryLenght: bool = None) -> bool:
-        self.finalStateReached: bool = self.finalStateReached or bool(self.gymDone) or (
-            bool(False if ObjectHelper.isNone(isEpisodeMaxHistoryLenght) else isEpisodeMaxHistoryLenght)
+    def isFinalState(self, state: State = None, episode: environmentModule.ShouldBeEpisode = None) -> bool:
+        return (
+            bool(self.gymDone)
+        ) or (
+            False if ObjectHelper.isNone(episode) else episode.isMaxHistoryLenght()
         )
-        # print(f'      ---> is final state: {bool(self.finalStateReached)}')
-        return bool(self.finalStateReached)
 
     def printState(self, data: str = c.BLANK):
-        print(f'{c.NEW_LINE} {self.key}')
         if StringHelper.isNotBlank(data) :
             print(data)
         self.gymEnvironment.render()
         # print('end of print state')
 
-    def _validateNotFinished(self, fromState: State):
-        if self.isFinalState(state=fromState):
+    def _validateNotFinished(self, fromState: State, episode: environmentModule.ShouldBeEpisode):
+        if self.isFinalState(state=fromState, episode=episode):
             raise Exception(f'Episode should be finished: {fromState}')
 
     def _reset(self):
         self.gymEnvironment.reset()
         self._stepFoward()
-        self.finalStateReached: bool = False

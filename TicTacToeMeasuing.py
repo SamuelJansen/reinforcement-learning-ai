@@ -1,10 +1,11 @@
 from python_helper import Constant as c
 from python_helper import ObjectHelper, StringHelper, RandomHelper, log, SettingHelper
-from reinforcement_learning import value as valueModule
 
+from reinforcement_learning import value as valueModule
 from reinforcement_learning import MonteCarloEpisodeAgent, RandomAgent, Action, Environment, Episode, History, State, Reward, List, Tuple, Set, Dictionary, Id
+from reinforcement_learning import trainningModule
+
 from TicTacToe import TicTacToeEnvironmentImpl
-from TicTacToeTrainning import runTest
 
 from plot import printGraph
 
@@ -12,38 +13,27 @@ SettingHelper.updateActiveEnvironment(SettingHelper.LOCAL_ENVIRONMENT)
 log.loadSettings()
 
 
+PLAYER_X_KEY: str = 'X'
+PLAYER_O_KEY: str = 'O'
+ENVIRONMENT_KEY = 'TicTacToe'
+
 BOARD_SIZE: int = 3
 MAX_REWARD: float = 1.0
 WIN_REWARD: float = MAX_REWARD
 DRAW_REWARD: float = MAX_REWARD ###- MAX_REWARD * 0.75
 DEFAULT_REWARD: float = 0.0
-
-PLAYER_X_KEY: str = 'X'
-PLAYER_O_KEY: str = 'O'
-ENVIRONMENT_KEY = 'TicTacToe'
+MAX_EPISODE_HISTORY_LENGHT: int = None
 
 TOTAL_TRAINNING_ITERATIONS: int = 50
-TRAINNING_BATCH: int = 100
-MEASURING_BATCH: int = 30
+TRAINNING_BATCH_SIZE: int = 100
+MEASURING_BATCH_SIZE: int = 30
 
 # TOTAL_TRAINNING_ITERATIONS: int = 20
-# TRAINNING_BATCH: int = 4
-# MEASURING_BATCH: int = 2
+# TRAINNING_BATCH_SIZE: int = 4
+# MEASURING_BATCH_SIZE: int = 2
 
 DEFAULT_EXPLORATION: float = 1 # 0.09
-EXPLORATION_REDUCING_RATIO: float = valueModule.getExplorationReducingRatio(DEFAULT_EXPLORATION, 0.05, TOTAL_TRAINNING_ITERATIONS)
 DEFAULT_RETENTION: float = 0.9
-ZERO_EXPLORATION: float = 0.0
-print(f'EXPLORATION_REDUCING_RATIO: {EXPLORATION_REDUCING_RATIO}')
-
-SHOW_BOARD_STATES_ON_BATCH_TRAINNING: bool = False
-SHOW_BOARD_STATES_ON_BATCH_MEASURING: bool = False
-
-VERIFY_EACH_ITERATION_ON_BATCH_TRAINNING: bool = False
-VERIFY_EACH_ITERATION_ON_BATCH_MEASURING: bool = False
-
-RUN_LAST_GAME: bool = True
-SHOW_BOARD_STATES_ON_LAST_GAME: bool = True
 
 
 # agents = {
@@ -78,22 +68,55 @@ environment: Environment = TicTacToeEnvironmentImpl(
     initialState=None
 )
 
-results: dict = runTest(
+
+def getWinner(environment: Environment) -> str:
+    return environment._getWinner(environment.getState())
+
+
+def newMeasurementData() -> dict:
+    return {
+        'winCount': 0,
+        'loseCount': 0,
+        'measurementEpisodeLenList': []
+    }
+
+
+def updateMeasurementData(measurementData: dict, measurementEpisode: Episode):
+    winner: str = getWinner(measurementEpisode.environment)
+    if PLAYER_O_KEY == winner:
+        measurementData['winCount'] += 1
+    elif PLAYER_X_KEY == winner:
+        measurementData['loseCount'] += 1
+    # print(f'    ---> episode winner: {winner}, state: {environment.state}')
+    measurementData['measurementEpisodeLenList'].append(len(measurementEpisode.history))
+
+
+def getTrainningBatchResult(measurementData: dict) -> dict:
+    return {
+        'winCount': measurementData['winCount']
+        , 'loseCount': measurementData['loseCount']
+        , 'drawCount': MEASURING_BATCH_SIZE - measurementData['winCount'] - measurementData['loseCount']
+        , 'measurementEpisodeLenList': measurementData['measurementEpisodeLenList']
+    }
+
+
+results: dict = trainningModule.runTrainning(
     environment,
-    PLAYER_X_KEY,
     PLAYER_O_KEY,
     agents,
-    EXPLORATION_REDUCING_RATIO,
-    EXPLORATION_REDUCING_RATIO,
     TOTAL_TRAINNING_ITERATIONS,
-    TRAINNING_BATCH,
-    VERIFY_EACH_ITERATION_ON_BATCH_TRAINNING,
-    SHOW_BOARD_STATES_ON_BATCH_TRAINNING,
-    MEASURING_BATCH,
-    VERIFY_EACH_ITERATION_ON_BATCH_MEASURING,
-    SHOW_BOARD_STATES_ON_BATCH_MEASURING,
-    RUN_LAST_GAME,
-    SHOW_BOARD_STATES_ON_LAST_GAME
+    TRAINNING_BATCH_SIZE,
+    MEASURING_BATCH_SIZE,
+    verifyEachIterationOnTrainningBatch=False,
+    showBoardStatesOnTrainningBatch=False,
+    verifyEachIterationOnMeasuringBatch=False,
+    showBoardStatesOnMeasuringBatch=False,
+    runLastGame=True,
+    showBoardStatesOnLastGame=True,
+    maxEpisodeHistoryLenght=MAX_EPISODE_HISTORY_LENGHT,
+    newMeasurementData=newMeasurementData,
+    updateMeasurementData=updateMeasurementData,
+    getTrainningBatchResult=getTrainningBatchResult
 )
 
 # for agent in agents.values():

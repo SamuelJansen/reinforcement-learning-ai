@@ -9,6 +9,11 @@ from reinforcement_learning.framework.exception import (
 
 from reinforcement_learning.ai.state import State
 from reinforcement_learning.ai.action import Action
+from reinforcement_learning.ai.reward import Reward
+
+
+class ShouldBeEpisode:
+    ...
 
 
 class Environment(Object):
@@ -43,11 +48,14 @@ class Environment(Object):
         self._reset()
         # print('environment reseted')
 
+    def getCurrentAgentKey(self) -> str:
+        raise MethodNotImplementedException()
+
     def getState(self):
         return self.state.getCopy()
 
     def setState(self, state: State):
-        self.state = state.getCopy()
+        raise MethodNotImplementedException()
 
     def getStateId(self):
         return self.state.getId()
@@ -55,16 +63,33 @@ class Environment(Object):
     def getPossibleActions(self):
         raise MethodNotImplementedException()
 
-    def updateState(self, action: Action, agents: List, willBeEpisodeMaxHistoryLenght: bool):
+    def updateState(self, action: Action, agents: List, episode: ShouldBeEpisode):
         raise MethodNotImplementedException()
 
     def prepareNextState(self):
         raise MethodNotImplementedException()
 
-    def isFinalState(self, state: State = None, isEpisodeMaxHistoryLenght: bool = False):
+    def isFinalState(self, state: State = None, episode: ShouldBeEpisode = None):
         raise MethodNotImplementedException()
 
-    def getReward(fromState: State, toState: State, agents: List, isFinalState: bool, isEpisodeMaxHistoryLenght: bool):
+    def getRewardWhileUpdating(self, fromState: State, toState: State, episode: ShouldBeEpisode) -> tuple:
+        willBeEpisodeMaxHistoryLenghtWhileUpdating: bool = episode.willBeMaxHistoryLenght()
+        isFinalState: bool = self.isFinalState(state=toState, episode=episode) or willBeEpisodeMaxHistoryLenghtWhileUpdating
+        return self.getReward(
+            fromState,
+            toState,
+            episode,
+            isFinalState,
+            willBeEpisodeMaxHistoryLenghtWhileUpdating=willBeEpisodeMaxHistoryLenghtWhileUpdating
+        ), isFinalState
+
+    def getReward(self,
+        fromState: State,
+        toState: State,
+        episode: ShouldBeEpisode,
+        isFinalState: bool,
+        willBeEpisodeMaxHistoryLenghtWhileUpdating: bool = False
+    ):
         raise MethodNotImplementedException()
 
     def printState(self, data: str = c.BLANK):

@@ -1,4 +1,5 @@
 from operator import itemgetter
+from python_helper import Constant as c
 from python_helper import ObjectHelper, RandomHelper, ReflectionHelper, log
 from reinforcement_learning.framework.object import Object, Id, getId
 from reinforcement_learning.framework import value as valueModule
@@ -12,15 +13,19 @@ from reinforcement_learning.framework.exception import (
 )
 
 
+def getExplorationReducingRatio(exploration: float, target: float, totalTrainningIterations: float):
+    return (target * exploration) ** (exploration / float(totalTrainningIterations))
+
+
 class AgentConstants:
 
-    ID = '_id'
+    ID = 'id'
     ACTIONS = 'actions'
     ACTION = 'action'
     ACTION_VALUE = 'value'
     ACTION_VISITS = 'visits'
 
-    ID_DB_KEY = ID
+    ID_DB_KEY = f'{c.UNDERSCORE}{ID}'
     STATE_HASH_DB_KEY = 'stateHash'
     ACTIONS_DB_KEY = ACTIONS
     ACTION_DB_KEY = ACTION
@@ -34,8 +39,6 @@ class Agent(Object):
         self,
         key: str,
         actionTable: dict = None,
-        exploration: float = 0.0,
-        retention: float = 1.0,
         id: Id = None
     ):
         """
@@ -53,11 +56,9 @@ class Agent(Object):
         }
         """
         Object.__init__(self, id=id)
-        self.key = key
+        self.key: str = key
         self.setActionTable({} if ObjectHelper.isEmpty(actionTable) else actionTable)
-        self.exploration = exploration
-        self.retention = retention
-        self.activateAgentUpdate()
+        self.activateUpdate()
 
     def getCopy(self):
         raise Exception('Agents should not be copied')
@@ -66,11 +67,9 @@ class Agent(Object):
         return str(self.key)
 
     def setActionTable(self, actionTable: dict):
-        # self.actionTable = {**actionTable}
         self.actionTable = actionTable
 
     def getActionTable(self):
-        # return {**self.actionTable}
         return self.actionTable
 
     def getDefaultStateActions(self):
@@ -78,12 +77,6 @@ class Agent(Object):
 
     def getAction(self, state: State, possibleActions: List) -> tuple:
         raise MethodNotImplementedException()
-
-    def byPassAgentUpdate(self):
-        self.doUpdate: bool = False
-
-    def activateAgentUpdate(self):
-        self.doUpdate: bool = True
 
     def update(self, history: History, isFinalState: bool):
         if self.doUpdate:
@@ -114,13 +107,34 @@ class Agent(Object):
         #                 return v
         return Dictionary()
 
+    def byPassUpdate(self):
+        self.doUpdate: bool = False
+
+    def activateUpdate(self):
+        self.doUpdate: bool = True
+
+    def freezeInternalState(self):
+        self.byPassUpdate()
+
+    def updateInternalState(self):
+        self.activateUpdate()
+
+    def newTrainning(self, totalTrainningIterations: int = 0, trainningBatchSize: int = 0, maxEpisodeHistoryLenght: int = None):
+        pass
+
+    def finishTrainning(self):
+        pass
+
     def printActionTable(self):
         actionTable = self.getActionTable()
-        log.prettyPython(self.printActionTable, 'actionTable', actionTable, logLevel=log.DEBUG)
         for k, v in actionTable.items():
             actionTable[k] = valueModule.sortedBy(v[AgentConstants.ACTIONS], AgentConstants.ACTION_VALUE)
-        log.prettyPython(self.printActionTable, 'q(s,a)', actionTable, logLevel=log.DEBUG)
-        log.debug(self.printActionTable, f'size: {len(self.actionTable)}')
+        log.debug(self.printActionTable, f'"{self.getKey()}" agent action table size: {len(self.actionTable)}')
+        if input("Print action table (y/n)?") in ['y', 'Y', 'yes', 'Yes', 'YES']:
+            log.prettyPython(self.printActionTable, f'"{self.getKey()}" agent action table - ex.: q(s,a)', actionTable, logLevel=log.DEBUG)
+
+    def getInternalStateDescription(self):
+        return f'{self.getKey()} agent. Internal state -> empty'
 
     def __str__(self):
         return f'{ReflectionHelper.getClassName(self)}(id: {self.getId()})'

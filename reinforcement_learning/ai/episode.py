@@ -46,14 +46,20 @@ class Episode(Object):
         showStates: bool = True
     ):
         Object.__init__(self, id=id)
+        self.setHistory(history)
         self.environment: Environment = environment
         self.agents: Dictionary = agents
         self.maxHistoryLenght: int = maxHistoryLenght
         # print(f"Agents: {agents}")
         self.showStates: bool = bool(showStates)
-        self.setHistory(history)
         if self.showStates:
             self.environment.printState(None)
+
+    def run(self, verifyEachIteration: bool = False, agentPerspectiveKey: str = None):
+        while not self.environment.isFinalState(episode=self):
+            self.nextSetp(self.agents[self.environment.getCurrentAgentKey()])
+        if verifyEachIteration and ObjectHelper.isNotNone(agentPerspectiveKey):
+            self.agents[agentPerspectiveKey].printActionTable()
 
     def setHistory(self, history: History):
         self.history: History = History(history)
@@ -78,27 +84,22 @@ class Episode(Object):
         return False if ObjectHelper.isNone(self.maxHistoryLenght) else self.maxHistoryLenght <= len(self.history)
 
     def nextSetp(self, agent: Agent, data: str = c.BLANK):
-        # print('episode nextStep')
-        # print(f'agent: {agent}')
-        # print('-    nextStep: self.environment.getState()')
+        if ObjectHelper.isNotNone(self.maxHistoryLenght) and len(self.history) > self.maxHistoryLenght:
+            raise Exception('Last episode event missed')
+
         fromState: State = self.environment.getState()
-        # print(f'fromState: {fromState}')
-        # print('-    nextStep: self.environment.getPossibleActions()')
         possibleActions: List = self.environment.getPossibleActions()
-        # print(f'possibleActions: {possibleActions}')
-        # print('-    nextStep: agent.getAction(fromState, possibleActions)')
-        agentKnowlege_temp, action_temp = agent.getAction(fromState, possibleActions, showActionChoice=bool(self.showStates))
+
+        agentKnowlege_temp, action_temp = agent.getAction(fromState, possibleActions)
         agentKnowlege: List = agentKnowlege_temp
         action: Action = action_temp
-        # print(f'action: {action}')
-        # print('-    nextStep: self.environment.updateState(action)')
+
         toState, reward, isFinalState = self.environment.updateState(
             action,
-            self.agents,
-            self.willBeMaxHistoryLenght()
+            self
         )
-        # print(f'toState: {toState}, reward: {reward}')
-        # print('-    nextStep: Event()')
+        # print(f'toState: {toState}, reward: {reward}, isFinalState: {isFinalState}')
+
         event: Event = Event(
             agent,
             fromState,
@@ -108,23 +109,22 @@ class Episode(Object):
             toState,
             reward
         )
-        # print(f'   fromState: {fromState}, \n   possibleActions: {possibleActions}, \n   action: {action}, \n   toState: {toState}, \n   reward: {reward}')
         self.history.append(event)
-        # print(self.history)
+
         if self.showStates:
             if StringHelper.isBlank(data) :
                 visitAccess = event.agent.access(event.fromState.getHash())
                 visits = [] if ObjectHelper.isEmpty(visitAccess) else visitAccess[AgentConstants.ACTIONS]
-                agentParametersData = f'Exploration: {event.agent.exploration}, retention: {event.agent.retention}'
-                fromStateData = f'{c.NEW_LINE}- From state: {event.fromState}, hash: {event.fromState.getHash()}'
-                possibleActionData = f'''{c.NEW_LINE}- Possible actions: {StringHelper.join(
+                agentParametersData = f'{self.environment.getKey()} {event.agent.getInternalStateDescription()}'
+                fromStateData = f'- From state: {event.fromState}, hash: {event.fromState.getHash()}'
+                possibleActionData = f'''- Possible actions: {StringHelper.join(
                     [
                         str(action) + ", " + action.getHash() for action in possibleActions
                     ],
                     character=" -- "
                 )}'''
-                agentKnowlegeData = f'{c.NEW_LINE}- Agent action knowlege: {agentKnowlege}'
-                actionListData = f'''{c.NEW_LINE}- Agent action list data: {StringHelper.join(
+                agentKnowlegeData = f'- Agent action knowlege: {agentKnowlege}'
+                actionListData = f'''- Agent action list data: {StringHelper.join(
                     [
                         str(v[AgentConstants.ACTION]) + c.COMA_SPACE + v[AgentConstants.ACTION].getHash() for v in visits if v[AgentConstants.ACTION].getHash() in [
                             a.getHash() for a in possibleActions
@@ -132,23 +132,21 @@ class Episode(Object):
                     ],
                     character=" -- "
                 )}'''
-                actionData = f'{c.NEW_LINE}- Action: {action}, hash: {action.getHash()}'
-                toStateData = f'{c.NEW_LINE}- To state: {event.toState}, hash: {event.toState.getHash()}'
-                rewardData = f'{c.NEW_LINE}- Reward: {reward}'
-                data = f'{agentParametersData}{fromStateData}{possibleActionData}{agentKnowlegeData}{actionListData}{actionData}{toStateData}{rewardData}'
+                actionData = f'- Action: {action}, hash: {action.getHash()}'
+                toStateData = f'- To state: {event.toState}, hash: {event.toState.getHash()}'
+                rewardData = f'- Reward: {reward}'
+                historyData = f'- History lenght: {len(self.history)}, max history lenght: {self.maxHistoryLenght}, isFinalState: {isFinalState}'
+                data = f'{c.NEW_LINE}{agentParametersData}{c.NEW_LINE}{fromStateData}{c.NEW_LINE}{possibleActionData}{c.NEW_LINE}{agentKnowlegeData}{c.NEW_LINE}{actionListData}{c.NEW_LINE}{actionData}{c.NEW_LINE}{toStateData}{c.NEW_LINE}{rewardData}{c.NEW_LINE}{historyData}'
             self.environment.printState(data=data)
-        # print('-    nextStep: self.getAgents()')
+
         for key, agent in self.getAgents().items():
             agent.update(
                 self.history,
                 isFinalState
             )
-        # print(self.history)
-        # print('-    nextStep: self.nextState()')
+
         if not isFinalState:
             self.environment.prepareNextState()
-        # print(f'   fromState: {fromState}, \n   possibleActions: {possibleActions}, \n   action: {action}, \n   toState: {toState}, \n   reward: {reward}')
-        # print('episode nextStep finished')
 
     def printHistory(self):
         log.prettyPython(self.printHistory, 'History', self.history, logLevel=log.DEBUG)

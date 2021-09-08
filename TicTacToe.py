@@ -2,6 +2,7 @@ from python_helper import Constant as c
 from python_helper import ObjectHelper, StringHelper
 from reinforcement_learning import value as valueModule
 from reinforcement_learning import MonteCarloEpisodeAgent, RandomAgent, Action, Agent, Environment, Episode, History, State, Reward, List, Tuple, Set, Dictionary, Id
+from reinforcement_learning import environmentModule
 
 DEFAULT_BOARD_SIZE: int = 3
 EMPTY_STATE_VALUE: str = c.SPACE
@@ -56,9 +57,15 @@ class TicTacToeEnvironmentImpl(Environment):
         initialState: State = self.getInitialState(initialState)
         Environment.__init__(self, initialState, *args, **kwargs)
 
+    def setState(self, state: State):
+        self.state = state.getCopy()
+
+    def getCurrentAgentKey(self) -> str:
+        return str(self.playerTurnKey)
+
     def getInitialState(self, initialState: List = None):
         self.playerTurnKey: str = self.playerX.key
-        self.originalPlayerTurnKey: str = str(self.playerTurnKey)
+        self.originalPlayerTurnKey: str = self.getCurrentAgentKey()
         return initialState if ObjectHelper.isNotNone(initialState) else State(
             List([
                 List([
@@ -72,50 +79,60 @@ class TicTacToeEnvironmentImpl(Environment):
         for h in range(len(self.state)):
             for v in range(len(self.state)):
                 if self.state[h][v] == self.EMPTY_STATE_VALUE:
-                    possibleActions.append(Action([(h, v, self.playerTurnKey)]))
+                    possibleActions.append(Action([(h, v, self.getCurrentAgentKey())]))
         return possibleActions
 
-    def updateState(self, action: Action, agents: List, willBeEpisodeMaxHistoryLenght: bool) -> tuple:
+    def updateState(self, action: Action, episode: environmentModule.ShouldBeEpisode) -> tuple:
         fromState = self.getState()
         self._validateGameNotFinished(fromState)
+        
         if ObjectHelper.isNotNone(action):
             toState: State = State(fromState).getCopy()
             for actionValue in action:
                 if not self.EMPTY_STATE_VALUE == toState[actionValue[0]][actionValue[1]]:
                     raise Exception(f'Invalid action: {actionValue} from state {fromState} to state {toState}')
                 toState[actionValue[0]][actionValue[1]] = actionValue[2]
+
         toState.updateHash()
         self.setState(toState)
-        isFinalState: bool = self.isFinalState(state=toState, isEpisodeMaxHistoryLenght=willBeEpisodeMaxHistoryLenght)
-        reward: Reward = self.getReward(fromState, toState, agents, isFinalState, willBeEpisodeMaxHistoryLenght)
-        # print(f'toState: {toState}, reward: {reward}, isFinalState: {isFinalState}') if isFinalState else None
+
+        temp_reward, temp_isFinalState = self.getRewardWhileUpdating(fromState, toState, episode)
+        reward: Reward = temp_reward
+        isFinalState: bool = temp_isFinalState
+
         return toState, reward, isFinalState
 
     def prepareNextState(self):
-        self.playerTurnKey = self.nextPlayerTurn.get(self.playerTurnKey)
+        self.playerTurnKey = self.nextPlayerTurn.get(self.getCurrentAgentKey())
 
-    def getReward(self, fromState: State, toState: State, agents: List, isFinalState: bool, isEpisodeMaxHistoryLenght: bool) -> Reward:
+    def getReward(self,
+        fromState: State,
+        toState: State,
+        episode: environmentModule.ShouldBeEpisode,
+        isFinalState: bool,
+        willBeEpisodeMaxHistoryLenghtWhileUpdating: bool = False
+    ) -> Reward:
         winner = self._getWinner(toState)
         self._validateGameNotFinished(fromState)
         if isFinalState:
             if winner is self.EMPTY_STATE_VALUE:
-                return Reward({key: self.drawReward for key in agents})
-            return Reward({key: self.winReward if key is winner else self.defaultReward for key in agents})
+                return Reward({key: self.drawReward for key in episode.agents})
+            return Reward({key: self.winReward if key is winner else self.defaultReward for key in episode.agents})
         # print(f'self.getReward: {self.EMPTY_STATE_VALUE} == {winner}: {self.EMPTY_STATE_VALUE == winner}')
-        return Reward({key: self.defaultReward for key in agents})
+        return Reward({key: self.defaultReward for key in episode.agents})
 
-    def isFinalState(self, state: State = None, isEpisodeMaxHistoryLenght: bool = None) -> bool:
+    def isFinalState(self, state: State = None, episode: environmentModule.ShouldBeEpisode = None) -> bool:
         return (
-            ObjectHelper.isNotNone(isEpisodeMaxHistoryLenght) and isEpisodeMaxHistoryLenght
+            False if ObjectHelper.isNone(episode) else episode.isMaxHistoryLenght()
         ) or (
-            ObjectHelper.isNotNone(self._getWinner(self.state if ObjectHelper.isNone(state) else state))
+            ObjectHelper.isNotNone(self._getWinner(state if ObjectHelper.isNotNone(state) else self.state))
         )
 
     def printState(self, data=c.BLANK):
         horizontalSeparator = StringHelper.join([self.HORIZONTAL_BOARD_SEPARATOR * self.valueSpacement for _ in range(len(self.state))], character=f'{self.HORIZONTAL_BOARD_SEPARATOR * len(self.VERTICAL_BOARD_SEPARATOR)}')
         if StringHelper.isNotBlank(data) :
             print(f'{data}')
-        print(f'- Player turn: {self.playerTurnKey}')
+        print(f'- Player turn: {self.getCurrentAgentKey()}')
         print(StringHelper.join(
             [
                 c.SPACE * (self.valueSpacement + self.margin),
@@ -143,7 +160,7 @@ class TicTacToeEnvironmentImpl(Environment):
                 if 1 == len(verifyRowSet) and True in verifyRowSet:
                     winner = possiblePlay
 
-            for columnIndex in range(len(self.state)):
+            for columnIndex in range(len(state)):
                 isFinished: bool = True
                 for row in state:
                     isFinished = isFinished and possiblePlay == row[columnIndex]
@@ -153,7 +170,7 @@ class TicTacToeEnvironmentImpl(Environment):
                     winner = possiblePlay
 
             isPositiveDiagonalyFinished: bool = True
-            for index in range(len(self.state)):
+            for index in range(len(state)):
                 isPositiveDiagonalyFinished = possiblePlay == state[index][index]
                 # print(f'{possiblePlay} == {state[index][index]}: {possiblePlay == state[index][index]}')
                 if not isPositiveDiagonalyFinished:
@@ -163,8 +180,8 @@ class TicTacToeEnvironmentImpl(Environment):
                 winner = possiblePlay
 
             isNegativeDiagonalyFinished: bool = True
-            for index in range(len(self.state)):
-                isNegativeDiagonalyFinished = possiblePlay == state[index][len(self.state) - index - 1]
+            for index in range(len(state)):
+                isNegativeDiagonalyFinished = possiblePlay == state[index][len(state) - index - 1]
                 # print(f'{possiblePlay} == {state[index][len(self.state) - index - 1]}: {possiblePlay == state[index][len(self.state) - index - 1]}')
                 if not isNegativeDiagonalyFinished:
                     # print('not isNegativeDiagonalyFinished')
@@ -178,13 +195,13 @@ class TicTacToeEnvironmentImpl(Environment):
                 for value in row:
                     if not self.EMPTY_STATE_VALUE == value:
                         actionsTaken += 1
-            if len(self.state)**2 == actionsTaken:
+            if len(state)**2 == actionsTaken:
                 winner = self.EMPTY_STATE_VALUE
         # print(f'winner: {winner}, state: {state}')
         return winner
 
     def _validateGameNotFinished(self, fromState: State):
-        if self.isFinalState(fromState):
+        if self.isFinalState(state=fromState):
             raise Exception(f'Episode should be finished: {fromState}')
 
     def _reset(self):

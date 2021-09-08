@@ -20,6 +20,7 @@ class MongoDB:
 
     def __init__(self, agent: Agent, environment: Environment):
         self.agentKey = agent.getKey()
+        self.agent = agent
         self.agentClassName = agent.getType()
         self.databaseNameSufix: str = f'{environment.getKey()}'
         self.databaseName, self.client, self.collection = self.openMongoDbConnection(self.agentKey)
@@ -33,9 +34,8 @@ class MongoDB:
         return databaseName, client, collection
 
     def persistEpisode(self, episode: Episode, muteLogs: bool = False):
-        agent = episode.agents.get(self.agentKey)
         if not muteLogs:
-            log.debug(self.persistEpisode, f'Persiting {self.getAgentInfo(agent)} events')
+            log.debug(self.persistEpisode, f'Persiting {self.getAgentInfo()} events')
         try:
             for event in episode.history:
                 # log.prettyPython(self.persistEpisode, 'History', episode.history.asJson(), logLevel=log.DEBUG)
@@ -44,17 +44,17 @@ class MongoDB:
                     'history': episode.history.asJson()
                 })
         except Exception as exception:
-            errorMessage = f'Not possible to persit {self.getAgentInfo(agent)} events'
+            errorMessage = f'Not possible to persit {self.getAgentInfo()} events'
             log.error(self.persistEpisode, errorMessage, exception)
             raise Exception(f'{errorMessage}. Cause: {str(exception)}')
         if not muteLogs:
-            log.debug(self.persistEpisode, f'{self.getAgentInfo(agent)} events persisted')
+            log.debug(self.persistEpisode, f'{self.getAgentInfo()} events persisted')
 
-    def persistActionTable(self, agent: Agent, muteLogs: bool = False):
+    def persistActionTable(self, muteLogs: bool = False):
         if not muteLogs:
-            log.debug(self.persistActionTable, f'Persiting {self.getAgentInfo(agent)} action table')
+            log.debug(self.persistActionTable, f'Persiting {self.getAgentInfo()} action table')
         try:
-            for stateHash, stateAction in agent.actionTable.items():
+            for stateHash, stateAction in self.agent.actionTable.items():
                 self.collection[self.databaseName].save(
                     {
                         AgentConstants.ID_DB_KEY : stateAction[AgentConstants.ID],
@@ -62,7 +62,7 @@ class MongoDB:
                         AgentConstants.ACTIONS_DB_KEY : stateAction[AgentConstants.ACTIONS]
                     }
                 )
-            # for stateHash, stateAction in agent.getActionTable().items():
+            # for stateHash, stateAction in self.agent.getActionTable().items():
             #     self.collection[self.databaseName].update(
             #         {
             #             AgentConstants.ID_DB_KEY: stateAction[AgentConstants.ID]
@@ -77,27 +77,27 @@ class MongoDB:
             #         upsert=True
             #     )
         except Exception as exception:
-            errorMessage = f'Not possible to persit {self.getAgentInfo(agent)} action table'
+            errorMessage = f'Not possible to persit {self.getAgentInfo()} action table'
             log.error(self.persistActionTable, errorMessage, exception)
             raise Exception(f'{errorMessage}. Cause: {str(exception)}')
         if not muteLogs:
-            log.debug(self.persistActionTable, f'{self.getAgentInfo(agent)} action table persisted')
+            log.debug(self.persistActionTable, f'{self.getAgentInfo()} action table persisted')
 
-    def loadActionTable(self, agent: Agent, muteLogs: bool = False):
+    def loadActionTable(self, muteLogs: bool = False):
         if not muteLogs:
-            log.debug(self.persistActionTable, f'Loading {self.getAgentInfo(agent)} action table')
+            log.debug(self.persistActionTable, f'Loading {self.getAgentInfo()} action table')
         try:
-            agent.setActionTable(
+            self.agent.setActionTable(
                 {
                     dbEntry[AgentConstants.STATE_HASH_DB_KEY]: self.convertFromDbActionVisitsToAgentActionVisits(dbEntry) for dbEntry in self.collection[self.databaseName].find({})
                 }
             )
         except Exception as exception:
-            errorMessage = f'Not possible to load {self.getAgentInfo(agent)} action table'
+            errorMessage = f'Not possible to load {self.getAgentInfo()} action table'
             log.error(self.persistActionTable, errorMessage, exception)
             raise Exception(f'{errorMessage}. Cause: {str(exception)}')
         if not muteLogs:
-            log.debug(self.persistActionTable, f'{self.getAgentInfo(agent)} action table loaded')
+            log.debug(self.persistActionTable, f'{self.getAgentInfo()} action table loaded')
 
     def convertFromDbActionVisitsToAgentActionVisits(self, dbEntry):
         # print(dbEntry)
@@ -120,9 +120,32 @@ class MongoDB:
             return Action([tuple(dbAction)])
         return Action([tuple(*dbAction)])
 
-    def getAgentInfo(self, agent: Agent):
-        return f'{agent.getType()} {agent.getKey()} {self.databaseNameSufix}'
+    def getAgentInfo(self):
+        return f'{self.agent.getType()} {self.agent.getKey()} {self.databaseNameSufix}'
 
+
+def loadMongoDbAgents(environment: Environment, agents: dict) -> dict:
+    mongoDbAgents: dict = {
+        agentKey: {
+            'agent': agent,
+            'mongoDb': MongoDB(
+                agent,
+                environment
+            )
+        } for agentKey, agent in agents.items()
+    }
+    for agentKey, mongoDbAgent in mongoDbAgents.items():
+        mongoDbAgent['mongoDb'].loadActionTable()
+    return mongoDbAgents
+
+
+def updateMongoDbAgents(mongoDbAgents: dict):
+    for agentKey, mongoDbAgent in mongoDbAgents.items():
+        mongoDbAgent['mongoDb'].persistActionTable()
+
+
+def saveEpisode(mongoDbAgent: dict, episode: Episode, muteLogs: bool = False):
+    mongoDbAgent['mongoDb'].persistEpisode(episode, muteLogs=muteLogs)
 
 ####################
 EXAMPLE = '''

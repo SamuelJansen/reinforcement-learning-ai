@@ -20,6 +20,12 @@ class MethodNotImplementedException(GlobalException):
         GlobalException.__init__(self, message)
 
 
+class FunctionNotImplementedException(GlobalException):
+
+    def __init__(self, message: str = 'Function not implemented'):
+        GlobalException.__init__(self, message)
+
+
 class BadImplementation(GlobalException):
 
     def __init__(self, message: str = 'Bad implementation'):

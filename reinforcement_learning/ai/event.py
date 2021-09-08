@@ -146,7 +146,7 @@ class Event(Object):
         )
 
     def __str__(self):
-        return f'{ReflectionHelper.getClassName(self)}({c.NEW_LINE}{c.TAB}id: {self.getId()}{c.NEW_LINE}{c.TAB}- Agent:{self.agent}{c.NEW_LINE}{c.TAB}- From state:{self.fromState}{c.NEW_LINE}{c.TAB}- Possible actions:{self.possibleActions}{c.NEW_LINE}{c.TAB}- Agent knowlege:{self.agentKnowlege}{c.NEW_LINE}{c.TAB}- Action: {self.action}{c.NEW_LINE}{c.TAB}- To state: {self.toState}{c.NEW_LINE}{c.TAB}- Reward: {self.reward})'
+        return f'{ReflectionHelper.getClassName(self)}({c.NEW_LINE}{c.TAB}id: {self.getId()}{c.NEW_LINE}{c.TAB}- Agent:{self.agent}{c.NEW_LINE}{c.TAB}- From state:{self.fromState}{c.NEW_LINE}{c.TAB}- Possible actions:{self.possibleActions}{c.NEW_LINE}{c.TAB}- Agent knowlege:{self.agentKnowlege}{c.NEW_LINE}{c.TAB}- Action: {self.action}{c.NEW_LINE}{c.TAB}- To state: {self.toState}{c.NEW_LINE}{c.TAB}- Reward: {self.reward}{c.NEW_LINE})'
 
     def __repr__(self):
         return self.__str__()

@@ -59,7 +59,8 @@ def simpleHash(value: object):
                 character=c.COMA
             )
         elif ObjectHelper.isNativeClassInstance(value):
-            return str(value)
+            hash = str(value).strip() if isinstance(value, str) else str(value).strip()
+            return hash if c.BLANK not in hash else StringHelper.join(hash.strip().split(), character=c.BLANK)
         else:
             # try:
             #     return value.getHash()
