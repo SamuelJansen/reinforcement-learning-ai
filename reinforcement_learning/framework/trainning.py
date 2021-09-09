@@ -8,6 +8,8 @@ from reinforcement_learning.framework.exception import FunctionNotImplementedExc
 from reinforcement_learning.framework import persistance as persistanceModule
 from reinforcement_learning.framework.persistance import MongoDB
 
+from reinforcement_learning.ai import episode as episodeModule
+
 from reinforcement_learning.ai.agent import Agent, AgentConstants
 from reinforcement_learning.ai.action import Action
 from reinforcement_learning.ai.environment import Environment
@@ -17,27 +19,29 @@ from reinforcement_learning.ai.state import State
 from reinforcement_learning.ai.reward import Reward
 
 
+class DataCollector:
 
-def notImplementedNewMeasurementData():
-    raise FunctionNotImplementedException()
+    def __init__(self, data: Dictionary = None):
+        self.data: Dictionary = Dictionary(data) if ObjectHelper.isNotNone(data) else Dictionary()
 
-
-def notImplementedUpdateMeasurementData(measurementData, measurementEpisode):
-    raise FunctionNotImplementedException()
-
-
-def notImplepentedGetTrainningBatchResult(measurementData):
-    raise FunctionNotImplementedException()
+    def newMeasurementData(self):
+        raise FunctionNotImplementedException()
 
 
-def prepareAgentsForNewTrainning(
-    agents: dict,
-    totalTrainningIterations: int,
-    trainningBatchSize: int,
-    maxEpisodeHistoryLenght: int
-):
+    def updateMeasurementData(self, measurementEpisode: Episode):
+        raise FunctionNotImplementedException()
+
+
+    def updateTrainningBatchResult(self, trainningIteration: int):
+        raise FunctionNotImplementedException()
+
+    def getTrainningBatchResult(self) -> Dictionary:
+        return Dictionary(self.data)
+
+
+def prepareAgentsForNewTrainning(agents: dict, totalTrainningIterations: int, trainningBatchSize: int):
     for agentKey, agent in agents.items():
-        agent.newTrainning(totalTrainningIterations, trainningBatchSize, maxEpisodeHistoryLenght)
+        agent.newTrainning(totalTrainningIterations, trainningBatchSize)
 
 
 def finishAgentsTrainning(agents: dict):
@@ -66,8 +70,8 @@ def runNewEpisode(
     episode: Episode = Episode(
         environment,
         agents,
+        maxEpisodeHistoryLenght
         history=History(),
-        maxHistoryLenght=maxEpisodeHistoryLenght,
         showStates=showStates
     )
     episode.run(agentPerspectiveKey=agentKey, verifyEachIteration=verifyEachIteration)
@@ -81,36 +85,34 @@ def runTrainning(
     totalTrainningIterations: int,
     trainningBatchSize: int,
     measuringBatchSize: int,
+    dataCollector: DataCollector,
+    maxEpisodeHistoryLenght: int = episodeModule.INFINITE,
     verifyEachIterationOnTrainningBatch: bool = False,
     showBoardStatesOnTrainningBatch: bool = False,
     verifyEachIterationOnMeasuringBatch: bool = False,
     showBoardStatesOnMeasuringBatch: bool = False,
-    runLastGame: bool = False,
-    showBoardStatesOnLastGame: bool = False,
-    maxEpisodeHistoryLenght: int = None,
-    newMeasurementData = notImplementedNewMeasurementData,
-    updateMeasurementData = notImplementedUpdateMeasurementData,
-    getTrainningBatchResult = notImplepentedGetTrainningBatchResult
+    runLastEpisode: bool = False,
+    showBoardStatesOnLastEpisode: bool = False
 ):
     mongoDbAgents: dict = persistanceModule.loadMongoDbAgents(environment, agents)
     results = {}
-    prepareAgentsForNewTrainning(agents, totalTrainningIterations, trainningBatchSize, maxEpisodeHistoryLenght)
+    prepareAgentsForNewTrainning(agents, totalTrainningIterations, trainningBatchSize)
     for trainningIteration in range(totalTrainningIterations):
-        for index in range(trainningBatchSize):
+        for trainningEpisodeIndex in range(trainningBatchSize):
             episode: Episode = runNewEpisode(
                 environment,
                 agentKey,
                 agents,
-                maxEpisodeHistoryLenght,
+                maxHistoryLenght=maxEpisodeHistoryLenght,
                 showStates=showBoardStatesOnTrainningBatch,
                 verifyEachIteration=verifyEachIterationOnTrainningBatch
             )
             persistanceModule.saveEpisode(mongoDbAgents[agentKey], episode, muteLogs=True)
-            if 0 == index % 10:
-                log.debug(runTrainning, f'End of the {trainningIteration*trainningBatchSize+index} {environment.getKey()} episode. {episode}. {agents[agentKey].getInternalStateDescription()}')
-        measurementData = newMeasurementData()
+            if 0 == trainningEpisodeIndex % 10:
+                log.debug(runTrainning, f'End of the {trainningIteration*trainningBatchSize+trainningEpisodeIndex} {environment.getKey()} {episode}. len(episode.hisotry): {len(episode.hisotry)}. {agents[agentKey].getInternalStateDescription()}')
+        dataCollector.newMeasurementData()
         prepareAgentsForMeasurement(agents)
-        for index in range(measuringBatchSize):
+        for trainningEpisodeIndex in range(measuringBatchSize):
             measurementEpisode: Episode = runNewEpisode(
                 environment,
                 agentKey,
@@ -119,20 +121,20 @@ def runTrainning(
                 showStates=showBoardStatesOnMeasuringBatch,
                 verifyEachIteration=verifyEachIterationOnMeasuringBatch
             )
-            updateMeasurementData(measurementData, measurementEpisode)
+            dataCollector.updateMeasurementData(measurementEpisode)
         updateAgentsAfterMeasurements(agents)
-        results[trainningIteration] = getTrainningBatchResult(measurementData)
+        dataCollector.updateTrainningBatchResult(trainningIteration) ###- results[trainningIteration] =
     finishAgentsTrainning(agents)
-    if runLastGame:
+    if runLastEpisode:
         lastEpisode: Episode = runNewEpisode(
             environment,
             agentKey,
             agents,
             maxEpisodeHistoryLenght,
-            showStates=showBoardStatesOnLastGame,
+            showStates=showBoardStatesOnLastEpisode,
             verifyEachIteration=False
         )
         log.debug(runTrainning, f'{agents[agentKey].getInternalStateDescription()}')
         log.debug(runTrainning, f'len(lastEpisode.history): {len(lastEpisode.history)}')
     persistanceModule.updateMongoDbAgents(mongoDbAgents)
-    return results
+    return dataCollector.getTrainningBatchResult()

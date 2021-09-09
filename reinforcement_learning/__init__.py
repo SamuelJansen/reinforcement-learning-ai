@@ -8,6 +8,7 @@ from reinforcement_learning.framework import persistance
 from reinforcement_learning.framework.persistance import MongoDB
 
 from reinforcement_learning.framework import trainning as trainningModule
+from reinforcement_learning.framework.trainning import DataCollector
 
 from reinforcement_learning.ai import episode as episodeModule
 from reinforcement_learning.ai import environment as environmentModule

@@ -39,7 +39,6 @@ class MonteCarloEpisodeAgent(Agent):
     DEFAULT_EXPLORATION_TARGET: float  = float(0.05)
     DEFAULT_TRAINNING_ITERATIONS: int = 0
     DEFAULT_TRAINNING_BATCH_SIZE: int = 0
-    DEFAULT_MAX_EPISODE_HISTORY_LENGHT: int = None
 
     def __init__(self,
         *args,
@@ -97,6 +96,13 @@ class MonteCarloEpisodeAgent(Agent):
                     else:
                         visit[AgentConstants.ACTION_VISITS] += 1
                         visit[AgentConstants.ACTION_VALUE] += (rewardTamed - visit[AgentConstants.ACTION_VALUE]) / visit[AgentConstants.ACTION_VISITS]
+            if len(self.actionTable[stateHash]) > 2:
+                error = {action.getHash(): action for action in self.actionTable[stateHash]}
+                log.prettyPython(self._update, f'self.actionTable[{stateHash}]', error, logLevel=log.DEBUG)
+                log.prettyPython(self._update, f'self.actionTable[{stateHash}]', error, logLevel=log.ERROR)
+                exception = Exception('CartPole-V1 test exception')
+                log.error(self._update, 'Invalid actions', exception)
+                raise exception
 
     def _appendFirstVisit(self, stateHash: str, event: Event, rewardTamed: float):
         self.actionTable[stateHash][AgentConstants.ACTIONS].append(
@@ -127,27 +133,21 @@ class MonteCarloEpisodeAgent(Agent):
         self.retention: float = float(self.currentRetention)
         self.activateUpdate()
 
-    def newTrainning(self,
-        totalTrainningIterations: int = DEFAULT_TRAINNING_ITERATIONS,
-        trainningBatchSize: int = DEFAULT_TRAINNING_BATCH_SIZE,
-        maxEpisodeHistoryLenght: int = DEFAULT_MAX_EPISODE_HISTORY_LENGHT
-    ):
-        self.totalTrainningIterations: int = totalTrainningIterations
-        self.trainningBatchSize: int = trainningBatchSize,
-        self.maxEpisodeHistoryLenght: int = maxEpisodeHistoryLenght
+    def _newTrainning(self, totalTrainningIterations: int, trainningBatchSize: int):
+        self.totalTrainningIterations: int = int(totalTrainningIterations)
+        self.trainningBatchSize: int = int(trainningBatchSize)
         self.currentExploration = float(self.initialExploration)
         self.exploration = float(self.initialExploration)
         self.explorationTarget = float(self.initialExplorationTarget)
         self.retention = float(self.initialRetention)
         self.explorationReducingRatio = agentModule.getExplorationReducingRatio(self.exploration, self.explorationTarget, self.totalTrainningIterations)
-        log.debug(self.newTrainning, f'Exploration reducing ratio: {self.explorationReducingRatio}')
+        log.debug(self._newTrainning, f'Exploration reducing ratio: {self.explorationReducingRatio}')
 
-    def finishTrainning(self):
+    def _finishTrainning(self):
         self.exploration = float(self.NO_EXPLORATION)
         self.retention = float(self.FULL_RETENTION)
         self.totalTrainningIterations: int = int(self.DEFAULT_TRAINNING_ITERATIONS)
         self.trainningBatchSize: int = int(self.DEFAULT_TRAINNING_BATCH_SIZE)
-        self.maxEpisodeHistoryLenght: int = self.DEFAULT_MAX_EPISODE_HISTORY_LENGHT if ObjectHelper.isNone(self.DEFAULT_MAX_EPISODE_HISTORY_LENGHT) else int(self.DEFAULT_MAX_EPISODE_HISTORY_LENGHT)
 
     def getInternalStateDescription(self):
-        return f'{self.getKey()} agent. Internal state -> exploration: {self.exploration}, retention: {self.retention}'
+        return f'{self.getKey()} agent -> isTrainning: {self.isTrainning()}, exploration: {self.exploration}, retention: {self.retention}'

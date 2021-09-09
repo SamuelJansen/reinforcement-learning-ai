@@ -57,6 +57,7 @@ class Agent(Object):
         """
         Object.__init__(self, id=id)
         self.key: str = key
+        self.setNotTrainning()
         self.setActionTable({} if ObjectHelper.isEmpty(actionTable) else actionTable)
         self.activateUpdate()
 
@@ -119,11 +120,28 @@ class Agent(Object):
     def updateInternalState(self):
         self.activateUpdate()
 
-    def newTrainning(self, totalTrainningIterations: int = 0, trainningBatchSize: int = 0, maxEpisodeHistoryLenght: int = None):
-        pass
+    def newTrainning(self, totalTrainningIterations: int, trainningBatchSize: int):
+        self.setIsTrainning()
+        self._newTrainning(totalTrainningIterations, trainningBatchSize)
 
     def finishTrainning(self):
+        self._finishTrainning()
+        set.setNotTrainning()
+
+    def _newTrainning(self, totalTrainningIterations: int, trainningBatchSize: int):
         pass
+
+    def _finishTrainning(self):
+        pass
+
+    def setNotTrainning(self):
+        self.trainning = False
+
+    def setIsTrainning(self):
+        self.trainning = True
+
+    def isTrainning(self) -> bool:
+        return bool(self.trainning)
 
     def printActionTable(self):
         actionTable = self.getActionTable()

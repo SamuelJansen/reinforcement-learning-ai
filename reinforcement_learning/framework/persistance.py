@@ -104,9 +104,19 @@ class MongoDB:
         return Dictionary({
             AgentConstants.ID: dbEntry[AgentConstants.ID_DB_KEY],
             AgentConstants.ACTIONS : List([
-                self.convertFromDbActionVisitToAgentActionVisit(dbAction) for dbAction in dbEntry[AgentConstants.ACTIONS_DB_KEY]
+                temporarelyValidateCartPoleV1Actions(self.convertFromDbActionVisitToAgentActionVisit(dbAction) for dbAction in dbEntry[AgentConstants.ACTIONS_DB_KEY])
             ])
         })
+
+    def temporarelyValidateCartPoleV1Actions(actions):
+        if len(actions) > 2:
+            error = {action.getHash(): action for action in actions}
+            log.prettyPython(self._update, f'self.actions', error, logLevel=log.DEBUG)
+            log.prettyPython(self._update, f'self.actions', error, logLevel=log.ERROR)
+            exception = Exception('CartPole-V1 test exception')
+            log.error(self.temporarelyValidateCartPoleV1Actions, 'Invalid actions', exception)
+            raise exception
+        return actions
 
     def convertFromDbActionVisitToAgentActionVisit(self, dbActionVisit):
         return Dictionary({
@@ -116,8 +126,13 @@ class MongoDB:
         })
 
     def convertFromDbActionToAgentAction(self, dbAction):
-        if ObjectHelper.isNotCollection(dbAction) or (ObjectHelper.isCollection(dbAction) and ObjectHelper.isNotCollection(dbAction[0]) and 1 == len(dbAction)):
+        if ObjectHelper.isNotCollection(dbAction):
             return Action([tuple(dbAction)])
+        elif ObjectHelper.isCollection(dbAction):
+            if ObjectHelper.isNotCollection(dbAction[0]) and 1 == len(dbAction):
+                return Action([tuple(dbAction)])
+        print(dbAction)
+        raise Exception('please verify it')
         return Action([tuple(*dbAction)])
 
     def getAgentInfo(self):
