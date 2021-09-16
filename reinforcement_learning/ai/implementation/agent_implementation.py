@@ -96,13 +96,6 @@ class MonteCarloEpisodeAgent(Agent):
                     else:
                         visit[AgentConstants.ACTION_VISITS] += 1
                         visit[AgentConstants.ACTION_VALUE] += (rewardTamed - visit[AgentConstants.ACTION_VALUE]) / visit[AgentConstants.ACTION_VISITS]
-            if len(self.actionTable[stateHash]) > 2:
-                error = {action.getHash(): action for action in self.actionTable[stateHash]}
-                log.prettyPython(self._update, f'self.actionTable[{stateHash}]', error, logLevel=log.DEBUG)
-                log.prettyPython(self._update, f'self.actionTable[{stateHash}]', error, logLevel=log.ERROR)
-                exception = Exception('CartPole-V1 test exception')
-                log.error(self._update, 'Invalid actions', exception)
-                raise exception
 
     def _appendFirstVisit(self, stateHash: str, event: Event, rewardTamed: float):
         self.actionTable[stateHash][AgentConstants.ACTIONS].append(

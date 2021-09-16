@@ -63,8 +63,7 @@ environment: Environment = TicTacToeEnvironmentImpl(
     DRAW_REWARD,
     DEFAULT_REWARD,
     ENVIRONMENT_KEY,
-    boardSize=BOARD_SIZE,
-    initialState=None
+    boardSize=BOARD_SIZE
 )
 
 
@@ -83,16 +82,8 @@ class DataCollectorImpl(DataCollector):
             self.measurementData['winCount'] += 1
         elif PLAYER_X_KEY == winner:
             self.measurementData['loseCount'] += 1
-        # print(f'    ---> episode winner: {winner}, state: {environment.state}')
+        self.measurementData['drawCount']: MEASURING_BATCH_SIZE - self.measurementData['winCount'] - self.measurementData['loseCount']
         self.measurementData['measurementEpisodeLenList'].append(len(measurementEpisode.history))
-
-    def getTrainningBatchResult(self, measurementData: dict) -> dict:
-        self.data[trainningIteration] = {
-            'winCount': self.measurementData['winCount']
-            , 'loseCount': self.measurementData['loseCount']
-            , 'drawCount': MEASURING_BATCH_SIZE - self.measurementData['winCount'] - self.measurementData['loseCount']
-            , 'measurementEpisodeLenList': self.measurementData['measurementEpisodeLenList']
-        }
 
     def getWinner(self, measurementEpisode: Episode) -> str:
         return measurementEpisode.environment._getWinner(measurementEpisode.environment.getState())
@@ -108,7 +99,7 @@ results: dict = trainningModule.runTrainning(
     TOTAL_TRAINNING_ITERATIONS,
     TRAINNING_BATCH_SIZE,
     MEASURING_BATCH_SIZE,
-    dataCollector
+    dataCollector,
     verifyEachIterationOnTrainningBatch=False,
     showBoardStatesOnTrainningBatch=False,
     verifyEachIterationOnMeasuringBatch=False,

@@ -3,7 +3,7 @@ from python_helper import ObjectHelper, StringHelper, RandomHelper, log, Setting
 
 from reinforcement_learning import value as valueModule
 from reinforcement_learning import MonteCarloEpisodeAgent, RandomAgent, Agent, Action, Environment, Episode, History, State, Reward, List, Tuple, Set, Dictionary, Id
-from reinforcement_learning import trainningModule
+from reinforcement_learning import trainningModule, DataCollector
 
 from CartPole import CartPoleV1EnvironmentImpl
 
@@ -22,10 +22,10 @@ AGENT_SUFIX = f'{AGENT_KEY}'
 # TRAINNING_BATCH_SIZE: int = 100
 # MEASURING_BATCH_SIZE: int = 10
 
-MAX_EPISODE_HISTORY_LENGHT: int = 12
-TOTAL_TRAINNING_ITERATIONS: int = 10000
+MAX_EPISODE_HISTORY_LENGHT: int = 22
+TOTAL_TRAINNING_ITERATIONS: int = 2000
 TRAINNING_BATCH_SIZE: int = 10
-MEASURING_BATCH_SIZE: int = 10
+MEASURING_BATCH_SIZE: int = 30
 
 DEFAULT_EXPLORATION: float = 1 #0.09
 DEFAULT_RETENTION: float = 0.95
@@ -57,15 +57,8 @@ class DataCollectorImpl(DataCollector):
             self.measurementData['winCount'] += 1
         else:
             self.measurementData['loseCount'] += 1
+        self.measurementData['drawCount']: MEASURING_BATCH_SIZE - self.measurementData['winCount'] - self.measurementData['loseCount']
         self.measurementData['measurementEpisodeLenList'].append(len(measurementEpisode.history))
-
-    def getTrainningBatchResult(self, measurementData: dict) -> dict:
-        self.data[trainningIteration] = {
-            'winCount': self.measurementData['winCount']
-            , 'loseCount': self.measurementData['loseCount']
-            , 'drawCount': MEASURING_BATCH_SIZE - self.measurementData['winCount'] - self.measurementData['loseCount']
-            , 'measurementEpisodeLenList': self.measurementData['measurementEpisodeLenList']
-        }
 
     def getWinner(self, measurementEpisode: Episode) -> str:
         return AGENT_KEY if measurementEpisode.isMaxHistoryLenght() else None
@@ -109,23 +102,23 @@ def runSample(measuringBatch):
         showBoardStatesOnLastEpisode=True
     )
 
-
-results: dict = trainningModule.runTrainning(
-    environment,
-    AGENT_KEY,
-    agents,
-    TOTAL_TRAINNING_ITERATIONS,
-    TRAINNING_BATCH_SIZE,
-    MEASURING_BATCH_SIZE,
-    dataCollector,
-    maxEpisodeHistoryLenght=MAX_EPISODE_HISTORY_LENGHT,
-    verifyEachIterationOnTrainningBatch=False,
-    showBoardStatesOnTrainningBatch=False,
-    verifyEachIterationOnMeasuringBatch=False,
-    showBoardStatesOnMeasuringBatch=False,
-    runLastEpisode=True,
-    showBoardStatesOnLastEpisode=True
-)
+for n in range(3):
+    results: dict = trainningModule.runTrainning(
+        environment,
+        AGENT_KEY,
+        agents,
+        TOTAL_TRAINNING_ITERATIONS,
+        TRAINNING_BATCH_SIZE,
+        MEASURING_BATCH_SIZE,
+        dataCollector,
+        maxEpisodeHistoryLenght=MAX_EPISODE_HISTORY_LENGHT,
+        verifyEachIterationOnTrainningBatch=False,
+        showBoardStatesOnTrainningBatch=False,
+        verifyEachIterationOnMeasuringBatch=False,
+        showBoardStatesOnMeasuringBatch=False,
+        runLastEpisode=True,
+        showBoardStatesOnLastEpisode=True
+    )
 
 # results: dict = runSample(10)
 

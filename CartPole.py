@@ -54,14 +54,14 @@ class CartPoleV1EnvironmentImpl(Environment):
         return str(self.currentAgentKey)
 
     def getPossibleActions(self):
-        return List([Tuple((n,)) for n in range(self.gymEnvironment.action_space.n)])
+        return List([Action([(n,)]) for n in range(self.gymEnvironment.action_space.n)])
 
     def _getCurrentStateFromGymState(self):
         return State([round(r, 2) for r in self.gymState])
 
     def updateState(self, action: Action, episode: environmentModule.ShouldBeEpisode) -> tuple:
         fromState = self.getState()
-        self._validateNotFinished(fromState, episode)
+        self._validateEpisodeNotFinishedWhileUpdating(fromState)
 
         self._stepFoward(action=action)
         toState: State = State(self._getCurrentStateFromGymState(), validate=False)
@@ -90,13 +90,13 @@ class CartPoleV1EnvironmentImpl(Environment):
         self.gymEnvironment.render()
         # print('end of print state')
 
-    def _validateNotFinished(self, fromState: State, episode: environmentModule.ShouldBeEpisode):
-        if self.isFinalState(state=fromState, episode=episode):
+    def _validateEpisodeNotFinishedWhileUpdating(self, fromState: State):
+        if self._isInFinalStateCondition(state=fromState):
             raise Exception(f'Episode should be finished: {fromState}')
 
     def _stepFoward(self, action: Action = None):
         if ObjectHelper.isNotNone(action):
-            self.gymState, self.gymReward, self.gymDone, self.gymInfo = self.gymEnvironment.step(action[0])
+            self.gymState, self.gymReward, self.gymDone, self.gymInfo = self.gymEnvironment.step(action[0][0])
         else:
             self.gymState, self.gymReward, self.gymDone, self.gymInfo = self.gymEnvironment.step(self.gymEnvironment.action_space.sample())
 

@@ -13,9 +13,7 @@ def printGraph(title, data, agent):
 
     # Plot axes labels and show the plot
     plt.title(title + ' - ' + agent.getKey())
-    plt.xlabel('trainning iteration - 100 trainnings')
+    plt.xlabel('trainning batch iteration | batch size: 100')
     plt.ylabel('event count')
     plt.legend()
     plt.show()
-
-# printGraph('test', DATA)

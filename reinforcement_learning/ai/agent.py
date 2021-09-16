@@ -126,7 +126,7 @@ class Agent(Object):
 
     def finishTrainning(self):
         self._finishTrainning()
-        set.setNotTrainning()
+        self.setNotTrainning()
 
     def _newTrainning(self, totalTrainningIterations: int, trainningBatchSize: int):
         pass

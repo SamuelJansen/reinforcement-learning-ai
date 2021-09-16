@@ -27,13 +27,11 @@ class DataCollector:
     def newMeasurementData(self):
         raise FunctionNotImplementedException()
 
-
     def updateMeasurementData(self, measurementEpisode: Episode):
         raise FunctionNotImplementedException()
 
-
-    def updateTrainningBatchResult(self, trainningIteration: int):
-        raise FunctionNotImplementedException()
+    def updateTrainningBatchResult(self):
+        self.data[len(self.data)] = {**self.measurementData}
 
     def getTrainningBatchResult(self) -> Dictionary:
         return Dictionary(self.data)
@@ -70,7 +68,7 @@ def runNewEpisode(
     episode: Episode = Episode(
         environment,
         agents,
-        maxEpisodeHistoryLenght
+        maxHistoryLenght=maxEpisodeHistoryLenght,
         history=History(),
         showStates=showStates
     )
@@ -103,13 +101,13 @@ def runTrainning(
                 environment,
                 agentKey,
                 agents,
-                maxHistoryLenght=maxEpisodeHistoryLenght,
+                maxEpisodeHistoryLenght,
                 showStates=showBoardStatesOnTrainningBatch,
                 verifyEachIteration=verifyEachIterationOnTrainningBatch
             )
             persistanceModule.saveEpisode(mongoDbAgents[agentKey], episode, muteLogs=True)
             if 0 == trainningEpisodeIndex % 10:
-                log.debug(runTrainning, f'End of the {trainningIteration*trainningBatchSize+trainningEpisodeIndex} {environment.getKey()} {episode}. len(episode.hisotry): {len(episode.hisotry)}. {agents[agentKey].getInternalStateDescription()}')
+                log.debug(runTrainning, f'End of the {trainningIteration*trainningBatchSize+trainningEpisodeIndex} {environment.getKey()} {episode}. len(episode.hisotry): {len(episode.history)}. {agents[agentKey].getInternalStateDescription()}')
         dataCollector.newMeasurementData()
         prepareAgentsForMeasurement(agents)
         for trainningEpisodeIndex in range(measuringBatchSize):
@@ -123,7 +121,7 @@ def runTrainning(
             )
             dataCollector.updateMeasurementData(measurementEpisode)
         updateAgentsAfterMeasurements(agents)
-        dataCollector.updateTrainningBatchResult(trainningIteration) ###- results[trainningIteration] =
+        dataCollector.updateTrainningBatchResult() ###- results[trainningIteration] =
     finishAgentsTrainning(agents)
     if runLastEpisode:
         lastEpisode: Episode = runNewEpisode(

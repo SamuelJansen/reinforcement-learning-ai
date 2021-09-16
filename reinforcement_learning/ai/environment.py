@@ -1,4 +1,6 @@
 from python_helper import Constant as c
+from python_helper import  ObjectHelper
+
 from reinforcement_learning.framework.object import Object, Id
 from reinforcement_learning.framework.value import (
     List
@@ -20,8 +22,8 @@ class Environment(Object):
 
     def __init__(self, key: str, state: State = None, id: Id = None, __originalInitialState__: State = None):
         self.key: str = key
-        self.__originalInitialState__: State = __originalInitialState__ if ObjectHelper.isNotNone(__originalInitialState__) else state.getCopy()
         self.setState(self.getInitialState(state))
+        self.__originalInitialState__: State = __originalInitialState__ if ObjectHelper.isNotNone(__originalInitialState__) else self.state if ObjectHelper.isNone(state) else state.getCopy()
         Object.__init__(self, id=id)
 
     def getCopy(self):
@@ -77,7 +79,7 @@ class Environment(Object):
     def prepareNextState(self):
         raise MethodNotImplementedException()
 
-    def isFinalState(self, state: State = None, episode: environmentModule.ShouldBeEpisode = None) -> bool:
+    def isFinalState(self, state: State = None, episode: ShouldBeEpisode = None) -> bool:
         return (
             False if ObjectHelper.isNone(episode) else episode.isMaxHistoryLenght()
         ) or (

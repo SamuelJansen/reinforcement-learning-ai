@@ -77,15 +77,8 @@ class DataCollectorImpl(DataCollector):
             self.measurementData['winCount'] += 1
         else:
             self.measurementData['loseCount'] += 1
+        self.measurementData['drawCount']: MEASURING_BATCH_SIZE - self.measurementData['winCount'] - self.measurementData['loseCount']
         self.measurementData['measurementEpisodeLenList'].append(len(measurementEpisode.history))
-
-    def getTrainningBatchResult(self, measurementData: dict) -> dict:
-        self.data[trainningIteration] = {
-            'winCount': self.measurementData['winCount']
-            , 'loseCount': self.measurementData['loseCount']
-            , 'drawCount': MEASURING_BATCH_SIZE - self.measurementData['winCount'] - self.measurementData['loseCount']
-            , 'measurementEpisodeLenList': self.measurementData['measurementEpisodeLenList']
-        }
 
     def getWinner(self, measurementEpisode: Episode) -> str:
         return measurementEpisode.environment._getWinner(
