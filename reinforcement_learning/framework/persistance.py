@@ -100,7 +100,6 @@ class MongoDB:
             log.debug(self.persistActionTable, f'{self.getAgentInfo()} action table loaded')
 
     def convertFromDbActionVisitsToAgentActionVisits(self, dbEntry):
-        # print(dbEntry)
         return Dictionary({
             AgentConstants.ID: dbEntry[AgentConstants.ID_DB_KEY],
             AgentConstants.ACTIONS : List([
@@ -116,9 +115,7 @@ class MongoDB:
         })
 
     def convertFromDbActionToAgentAction(self, dbAction):
-        if ObjectHelper.isNotCollection(dbAction) or (ObjectHelper.isCollection(dbAction) and ObjectHelper.isNotCollection(dbAction[0]) and 1 == len(dbAction)):
-            return Action([tuple(dbAction)])
-        return Action([tuple(*dbAction)])
+        return Action([tuple(action) for action in dbAction])
 
     def getAgentInfo(self):
         return f'{self.agent.getType()} {self.agent.getKey()} {self.databaseNameSufix}'

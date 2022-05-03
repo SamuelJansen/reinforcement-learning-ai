@@ -34,14 +34,17 @@ def getKey(instanceOrAiClass):
             return ReflectionHelper.getName(aiClass)
 
 
+INFINITE: int = int(-1)
+
+
 class Episode(Object):
 
     def __init__(
         self,
         environment: Environment,
         agents: Dictionary,
+        maxHistoryLenght: int = INFINITE,
         history: History = None,
-        maxHistoryLenght: int = None,
         id: Id = None,
         showStates: bool = True
     ):
@@ -49,11 +52,23 @@ class Episode(Object):
         self.setHistory(history)
         self.environment: Environment = environment
         self.agents: Dictionary = agents
-        self.maxHistoryLenght: int = maxHistoryLenght
+        self.maxHistoryLenght: int = maxHistoryLenght if ObjectHelper.isNotNone(maxHistoryLenght) else INFINITE
         # print(f"Agents: {agents}")
+        self.updating = False
+        self.setUpdating()
+
         self.showStates: bool = bool(showStates)
         if self.showStates:
             self.environment.printState(None)
+
+    def setUpdating(self):
+        self.updating = True
+
+    def setNotUpdating(self):
+        self.updating = False
+
+    def isUpdating(self) -> bool:
+        return bool(self.updating)
 
     def run(self, verifyEachIteration: bool = False, agentPerspectiveKey: str = None):
         while not self.environment.isFinalState(episode=self):
@@ -71,20 +86,21 @@ class Episode(Object):
         return Episode(
             self.environment,
             self.agents,
-            history=self.getHistory(),
             maxHistoryLenght=self.maxHistoryLenght,
+            history=self.getHistory(),
             id=self.getId(),
             showStates=self.showStates
         )
 
-    def willBeMaxHistoryLenght(self):
-        return False if ObjectHelper.isNone(self.maxHistoryLenght) else self.maxHistoryLenght <= len(self.history) + 1
+    def _willBeMaxHistoryLenght(self):
+        return False if INFINITE == self.maxHistoryLenght else self.maxHistoryLenght <= len(self.history) + 1 if self.isUpdating() else self.isMaxHistoryLenght()
 
     def isMaxHistoryLenght(self):
-        return False if ObjectHelper.isNone(self.maxHistoryLenght) else self.maxHistoryLenght <= len(self.history)
+        return False if INFINITE == self.maxHistoryLenght else self.maxHistoryLenght <= len(self.history) if not self.isUpdating() else self._willBeMaxHistoryLenght()
 
     def nextSetp(self, agent: Agent, data: str = c.BLANK):
-        if ObjectHelper.isNotNone(self.maxHistoryLenght) and len(self.history) > self.maxHistoryLenght:
+        self.setUpdating()
+        if not INFINITE == self.maxHistoryLenght and len(self.history) > self.maxHistoryLenght:
             raise Exception('Last episode event missed')
 
         fromState: State = self.environment.getState()
@@ -147,6 +163,8 @@ class Episode(Object):
 
         if not isFinalState:
             self.environment.prepareNextState()
+
+        self.setNotUpdating()
 
     def printHistory(self):
         log.prettyPython(self.printHistory, 'History', self.history, logLevel=log.DEBUG)

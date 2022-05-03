@@ -25,7 +25,6 @@ class TicTacToeEnvironmentImpl(Environment):
         boardSize: int = DEFAULT_BOARD_SIZE,
         valueSpacement: int = 3,
         margin: int = 3,
-        initialState: List = None,
         **kwargs
     ):
         self.__originalArgs__ = [
@@ -38,8 +37,7 @@ class TicTacToeEnvironmentImpl(Environment):
         self.__originalKwargs__ = {
             'boardSize': boardSize,
             'valueSpacement': valueSpacement,
-            'margin': margin,
-            'initialState': initialState
+            'margin': margin
         }
         self.winReward: float = winReward
         self.drawReward: float = drawReward
@@ -54,8 +52,7 @@ class TicTacToeEnvironmentImpl(Environment):
             self.playerX.key : self.playerY.key,
             self.playerY.key : self.playerX.key
         }
-        initialState: State = self.getInitialState(initialState)
-        Environment.__init__(self, initialState, *args, **kwargs)
+        Environment.__init__(self, *args, **kwargs)
 
     def setState(self, state: State):
         self.state = state.getCopy()
@@ -85,7 +82,7 @@ class TicTacToeEnvironmentImpl(Environment):
     def updateState(self, action: Action, episode: environmentModule.ShouldBeEpisode) -> tuple:
         fromState = self.getState()
         self._validateGameNotFinished(fromState)
-        
+
         if ObjectHelper.isNotNone(action):
             toState: State = State(fromState).getCopy()
             for actionValue in action:
@@ -96,37 +93,24 @@ class TicTacToeEnvironmentImpl(Environment):
         toState.updateHash()
         self.setState(toState)
 
-        temp_reward, temp_isFinalState = self.getRewardWhileUpdating(fromState, toState, episode)
-        reward: Reward = temp_reward
-        isFinalState: bool = temp_isFinalState
-
+        isFinalState: bool = self.isFinalState(state=toState, episode=episode)
+        reward: Reward = self.getReward(fromState, toState, episode, isFinalState)
         return toState, reward, isFinalState
 
     def prepareNextState(self):
         self.playerTurnKey = self.nextPlayerTurn.get(self.getCurrentAgentKey())
 
-    def getReward(self,
-        fromState: State,
-        toState: State,
-        episode: environmentModule.ShouldBeEpisode,
-        isFinalState: bool,
-        willBeEpisodeMaxHistoryLenghtWhileUpdating: bool = False
-    ) -> Reward:
+    def getReward(self, fromState: State, toState: State, episode: environmentModule.ShouldBeEpisode, isFinalState: bool) -> Reward:
         winner = self._getWinner(toState)
         self._validateGameNotFinished(fromState)
         if isFinalState:
             if winner is self.EMPTY_STATE_VALUE:
                 return Reward({key: self.drawReward for key in episode.agents})
             return Reward({key: self.winReward if key is winner else self.defaultReward for key in episode.agents})
-        # print(f'self.getReward: {self.EMPTY_STATE_VALUE} == {winner}: {self.EMPTY_STATE_VALUE == winner}')
         return Reward({key: self.defaultReward for key in episode.agents})
 
-    def isFinalState(self, state: State = None, episode: environmentModule.ShouldBeEpisode = None) -> bool:
-        return (
-            False if ObjectHelper.isNone(episode) else episode.isMaxHistoryLenght()
-        ) or (
-            ObjectHelper.isNotNone(self._getWinner(state if ObjectHelper.isNotNone(state) else self.state))
-        )
+    def _isInFinalStateCondition(self, state: State) -> bool:
+        return ObjectHelper.isNotNone(self._getWinner(state))
 
     def printState(self, data=c.BLANK):
         horizontalSeparator = StringHelper.join([self.HORIZONTAL_BOARD_SEPARATOR * self.valueSpacement for _ in range(len(self.state))], character=f'{self.HORIZONTAL_BOARD_SEPARATOR * len(self.VERTICAL_BOARD_SEPARATOR)}')

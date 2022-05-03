@@ -3,7 +3,7 @@ from python_helper import ObjectHelper, StringHelper, RandomHelper, log, Setting
 
 from reinforcement_learning import value as valueModule
 from reinforcement_learning import MonteCarloEpisodeAgent, RandomAgent, Agent, Action, Environment, Episode, History, State, Reward, List, Tuple, Set, Dictionary, Id
-from reinforcement_learning import trainningModule
+from reinforcement_learning import trainningModule, DataCollector
 
 from GridWorld import SquareGridEnvironmentImpl, HumanAgentImpl
 
@@ -51,45 +51,43 @@ agents = {
         retention=DEFAULT_RETENTION
     )
 }
+
 environment: Environment = SquareGridEnvironmentImpl(
     WIN_REWARD,
     DRAW_REWARD,
     DEFAULT_REWARD,
     ENVIRONMENT_KEY,
-    initialState=None,
     boardSize=BOARD_SIZE,
     targetPositions=TARGET_POSITIONS
 )
 
 
-def getWinner(environment: Environment) -> str:
-    return environment._getWinner(environment.getState(), environment.getCurrentAgentKey())
+class DataCollectorImpl(DataCollector):
+
+    def newMeasurementData(self):
+        self.measurementData = Dictionary({
+            'winCount': 0,
+            'loseCount': 0,
+            'measurementEpisodeLenList': []
+        })
+
+    def updateMeasurementData(self, measurementEpisode: Episode):
+        winner: str = self.getWinner(measurementEpisode)
+        if AGENT_KEY == winner:
+            self.measurementData['winCount'] += 1
+        else:
+            self.measurementData['loseCount'] += 1
+        self.measurementData['drawCount']: MEASURING_BATCH_SIZE - self.measurementData['winCount'] - self.measurementData['loseCount']
+        self.measurementData['measurementEpisodeLenList'].append(len(measurementEpisode.history))
+
+    def getWinner(self, measurementEpisode: Episode) -> str:
+        return measurementEpisode.environment._getWinner(
+            measurementEpisode.environment.getState(),
+            measurementEpisode.environment.getCurrentAgentKey()
+        )
 
 
-def newMeasurementData() -> dict:
-    return {
-        'winCount': 0,
-        'loseCount': 0,
-        'measurementEpisodeLenList': []
-    }
-
-
-def updateMeasurementData(measurementData: dict, measurementEpisode: Episode):
-    winner: str = getWinner(measurementEpisode.environment)
-    if AGENT_KEY == winner:
-        measurementData['winCount'] += 1
-    else:
-        measurementData['loseCount'] += 1
-    measurementData['measurementEpisodeLenList'].append(len(measurementEpisode.history))
-
-
-def getTrainningBatchResult(measurementData: dict) -> dict:
-    return {
-        'winCount': measurementData['winCount']
-        , 'loseCount': measurementData['loseCount']
-        , 'drawCount': MEASURING_BATCH_SIZE - measurementData['winCount'] - measurementData['loseCount']
-        , 'measurementEpisodeLenList': measurementData['measurementEpisodeLenList']
-    }
+dataCollector = DataCollectorImpl()
 
 
 results: dict = trainningModule.runTrainning(
@@ -99,16 +97,14 @@ results: dict = trainningModule.runTrainning(
     TOTAL_TRAINNING_ITERATIONS,
     TRAINNING_BATCH_SIZE,
     MEASURING_BATCH_SIZE,
+    dataCollector,
+    maxEpisodeHistoryLenght=MAX_EPISODE_HISTORY_LENGHT,
     verifyEachIterationOnTrainningBatch=False,
     showBoardStatesOnTrainningBatch=False,
     verifyEachIterationOnMeasuringBatch=False,
     showBoardStatesOnMeasuringBatch=False,
-    runLastGame=True,
-    showBoardStatesOnLastGame=True,
-    maxEpisodeHistoryLenght=MAX_EPISODE_HISTORY_LENGHT,
-    newMeasurementData=newMeasurementData,
-    updateMeasurementData=updateMeasurementData,
-    getTrainningBatchResult=getTrainningBatchResult
+    runLastEpisode=True,
+    showBoardStatesOnLastEpisode=True
 )
 
 # log.prettyPython(log.debug, 'results', results, logLevel=log.DEBUG)

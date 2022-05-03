@@ -1,7 +1,7 @@
 import msvcrt
 
 from python_helper import Constant as c
-from python_helper import ObjectHelper, StringHelper, RandomHelper, log, SettingHelper
+from python_helper import ObjectHelper, StringHelper, RandomHelper, log, SettingHelper, EnvironmentHelper
 
 from reinforcement_learning import value as valueModule
 from reinforcement_learning import MonteCarloEpisodeAgent, RandomAgent, Agent, Action, Environment, Episode, History, State, Reward, List, Tuple, Set, Dictionary, Id
@@ -21,11 +21,14 @@ DEFAULT_BOARD_SIZE: list = [4, 4]
 
 class HumanAgentImpl(Agent):
 
+    INPUTTER = None
+
     def getAction(self, state: State, possibleActions: List):
+        self.loadInputterIfNeeded()
         print(f'asdw ({possibleActions}): ', end=c.BLANK)
         while True:
-            choice = msvcrt.getch()
-            # choice = msvcrt.getche(f'asdw ({possibleActions}): ')
+            choice = self.inputter.getch()
+            # choice = inputter.getche(f'asdw ({possibleActions}): ')
             if b'a' == choice:
                 action = Action([(0, -1, self.key)])
             elif b'd' == choice:
@@ -41,6 +44,14 @@ class HumanAgentImpl(Agent):
 
     def _update(self, history: History, episode: environmentModule.ShouldBeEpisode):
         ...
+
+    def loadInputterIfNeeded(self):
+        if ObjectHelper.isNone(self.INPUTTER):
+            if EnvironmentHelper.isLinux():
+                import msvcrt as inputter
+            else :
+                import getch as inputter
+            self.inputter = inputter
 
 
 class SquareGridEnvironmentImpl(Environment):
@@ -61,7 +72,6 @@ class SquareGridEnvironmentImpl(Environment):
         targetPositions: List = List(),
         valueSpacement: int = 3,
         margin: int = 3,
-        initialState: State = None,
         **kwargs
     ):
         self.__originalArgs__ = [
@@ -74,8 +84,7 @@ class SquareGridEnvironmentImpl(Environment):
             'boardSize': boardSize,
             'valueSpacement': valueSpacement,
             'margin': margin,
-            'targetPositions': targetPositions,
-            'initialState': initialState
+            'targetPositions': targetPositions
         }
         self.winReward: float = winReward
         self.drawReward: float = drawReward
@@ -89,8 +98,7 @@ class SquareGridEnvironmentImpl(Environment):
             self.getCurrentAgentKey(): self.getCurrentAgentKey()
         }
         self.originalPlayerTurnKey = self.getCurrentAgentKey()
-        initialState: State = self.getInitialState(initialState)
-        Environment.__init__(self, initialState, *args, **kwargs)
+        Environment.__init__(self, *args, **kwargs)
 
     def getCurrentAgentKey(self) -> str:
         return str(self.playerTurnKey)
@@ -153,36 +161,21 @@ class SquareGridEnvironmentImpl(Environment):
 
         toState.updateHash()
         self.setState(toState)
-        temp_reward, temp_isFinalState = self.getRewardWhileUpdating(fromState, toState, episode)
-        reward: Reward = temp_reward
-        isFinalState: bool = temp_isFinalState
 
+        isFinalState: bool = self.isFinalState(state=toState, episode=episode)
+        reward: Reward = self.getReward(fromState, toState, episode, isFinalState)
         return toState, reward, isFinalState
 
     def prepareNextState(self):
         self.playerTurnKey = self.nextPlayerTurn.get(self.getCurrentAgentKey())
 
-    def getReward(self,
-        fromState: State,
-        toState: State,
-        episode: environmentModule.ShouldBeEpisode,
-        isFinalState: bool,
-        willBeEpisodeMaxHistoryLenghtWhileUpdating: bool = False
-    ) -> Reward:
-        # print('getting reward')
-        # print(f"Agents: {episode.agents}")
+    def getReward(self, fromState: State, toState: State, episode: environmentModule.ShouldBeEpisode, isFinalState: bool) -> Reward:
         self._validateGameNotFinished(fromState)
         reward = Reward({key: self.winReward if isFinalState and key is self.getCurrentAgentKey() else self.defaultReward for key, agent in episode.agents.items()})
-        # print('getting reward finished')
         return reward
 
-    def isFinalState(self, state: State = None, episode: environmentModule.ShouldBeEpisode = None) -> bool:
-        # print('is final state')
-        return (
-            False if ObjectHelper.isNone(episode) else episode.isMaxHistoryLenght()
-        ) or (
-            ObjectHelper.isNotNone(self._getWinner(state if ObjectHelper.isNotNone(state) else self.state, self.getCurrentAgentKey()))
-        )
+    def _isInFinalStateCondition(self, state: State = None) -> bool:
+        return ObjectHelper.isNotNone(self._getWinner(state, self.getCurrentAgentKey()))
 
     def printState(self, data: str = c.BLANK):
         horizontalSeparator = StringHelper.join([self.HORIZONTAL_BOARD_SEPARATOR * self.valueSpacement for _ in range(len(self.state[0]))], character=f'{self.HORIZONTAL_BOARD_SEPARATOR * len(self.VERTICAL_BOARD_SEPARATOR)}')

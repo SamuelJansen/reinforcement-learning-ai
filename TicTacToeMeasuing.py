@@ -3,7 +3,7 @@ from python_helper import ObjectHelper, StringHelper, RandomHelper, log, Setting
 
 from reinforcement_learning import value as valueModule
 from reinforcement_learning import MonteCarloEpisodeAgent, RandomAgent, Action, Environment, Episode, History, State, Reward, List, Tuple, Set, Dictionary, Id
-from reinforcement_learning import trainningModule
+from reinforcement_learning import trainningModule, DataCollector
 
 from TicTacToe import TicTacToeEnvironmentImpl
 
@@ -22,7 +22,6 @@ MAX_REWARD: float = 1.0
 WIN_REWARD: float = MAX_REWARD
 DRAW_REWARD: float = MAX_REWARD ###- MAX_REWARD * 0.75
 DEFAULT_REWARD: float = 0.0
-MAX_EPISODE_HISTORY_LENGHT: int = None
 
 TOTAL_TRAINNING_ITERATIONS: int = 50
 TRAINNING_BATCH_SIZE: int = 100
@@ -64,40 +63,33 @@ environment: Environment = TicTacToeEnvironmentImpl(
     DRAW_REWARD,
     DEFAULT_REWARD,
     ENVIRONMENT_KEY,
-    boardSize=BOARD_SIZE,
-    initialState=None
+    boardSize=BOARD_SIZE
 )
 
 
-def getWinner(environment: Environment) -> str:
-    return environment._getWinner(environment.getState())
+class DataCollectorImpl(DataCollector):
+
+    def newMeasurementData(self):
+        self.measurementData = Dictionary({
+            'winCount': 0,
+            'loseCount': 0,
+            'measurementEpisodeLenList': []
+        })
+
+    def updateMeasurementData(self, measurementEpisode: Episode):
+        winner: str = self.getWinner(measurementEpisode)
+        if PLAYER_O_KEY == winner:
+            self.measurementData['winCount'] += 1
+        elif PLAYER_X_KEY == winner:
+            self.measurementData['loseCount'] += 1
+        self.measurementData['drawCount']: MEASURING_BATCH_SIZE - self.measurementData['winCount'] - self.measurementData['loseCount']
+        self.measurementData['measurementEpisodeLenList'].append(len(measurementEpisode.history))
+
+    def getWinner(self, measurementEpisode: Episode) -> str:
+        return measurementEpisode.environment._getWinner(measurementEpisode.environment.getState())
 
 
-def newMeasurementData() -> dict:
-    return {
-        'winCount': 0,
-        'loseCount': 0,
-        'measurementEpisodeLenList': []
-    }
-
-
-def updateMeasurementData(measurementData: dict, measurementEpisode: Episode):
-    winner: str = getWinner(measurementEpisode.environment)
-    if PLAYER_O_KEY == winner:
-        measurementData['winCount'] += 1
-    elif PLAYER_X_KEY == winner:
-        measurementData['loseCount'] += 1
-    # print(f'    ---> episode winner: {winner}, state: {environment.state}')
-    measurementData['measurementEpisodeLenList'].append(len(measurementEpisode.history))
-
-
-def getTrainningBatchResult(measurementData: dict) -> dict:
-    return {
-        'winCount': measurementData['winCount']
-        , 'loseCount': measurementData['loseCount']
-        , 'drawCount': MEASURING_BATCH_SIZE - measurementData['winCount'] - measurementData['loseCount']
-        , 'measurementEpisodeLenList': measurementData['measurementEpisodeLenList']
-    }
+dataCollector = DataCollectorImpl()
 
 
 results: dict = trainningModule.runTrainning(
@@ -107,16 +99,13 @@ results: dict = trainningModule.runTrainning(
     TOTAL_TRAINNING_ITERATIONS,
     TRAINNING_BATCH_SIZE,
     MEASURING_BATCH_SIZE,
+    dataCollector,
     verifyEachIterationOnTrainningBatch=False,
     showBoardStatesOnTrainningBatch=False,
     verifyEachIterationOnMeasuringBatch=False,
     showBoardStatesOnMeasuringBatch=False,
-    runLastGame=True,
-    showBoardStatesOnLastGame=True,
-    maxEpisodeHistoryLenght=MAX_EPISODE_HISTORY_LENGHT,
-    newMeasurementData=newMeasurementData,
-    updateMeasurementData=updateMeasurementData,
-    getTrainningBatchResult=getTrainningBatchResult
+    runLastEpisode=True,
+    showBoardStatesOnLastEpisode=True
 )
 
 # for agent in agents.values():

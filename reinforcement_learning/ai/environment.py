@@ -1,4 +1,6 @@
 from python_helper import Constant as c
+from python_helper import  ObjectHelper
+
 from reinforcement_learning.framework.object import Object, Id
 from reinforcement_learning.framework.value import (
     List
@@ -18,29 +20,37 @@ class ShouldBeEpisode:
 
 class Environment(Object):
 
-    def __init__(self, state: State, key: str, id: Id = None):
+    def __init__(self, key: str, state: State = None, id: Id = None, __originalInitialState__: State = None):
         self.key: str = key
-        self.__originalInitialState__: State = state.getCopy()
-        self.setState(state)
+        self.setState(self.getInitialState(state))
+        self.__originalInitialState__: State = __originalInitialState__ if ObjectHelper.isNotNone(__originalInitialState__) else self.state if ObjectHelper.isNone(state) else state.getCopy()
         Object.__init__(self, id=id)
 
     def getCopy(self):
         raise Exception("please review this implementation")
-        args = [*self.__originalArgs__]
+        args = [
+            *self.__originalArgs__,
+            self.getState(),
+            self.getKey()
+        ]
         kwargs = {
             **self.__originalKwargs__,
             **{
-                'id': self.getId(),
-                'initialState': self.getState()
+                'id': self.getId()
             }
         }
         return self.__class__(
-            *args,
-            **kwargs
+            self.getState(),
+            self.getKey(),
+            id=self.getId(),
+            __originalInitialState__ = self.__originalInitialState__.getCopy()
         )
 
     def getKey(self) -> str:
         return str(self.key)
+
+    def getInitialState(self) -> State:
+        raise MethodNotImplementedException()
 
     def reset(self):
         # print('environment reseting')
@@ -69,26 +79,21 @@ class Environment(Object):
     def prepareNextState(self):
         raise MethodNotImplementedException()
 
-    def isFinalState(self, state: State = None, episode: ShouldBeEpisode = None):
-        raise MethodNotImplementedException()
+    def isFinalState(self, state: State = None, episode: ShouldBeEpisode = None) -> bool:
+        return (
+            False if ObjectHelper.isNone(episode) else episode.isMaxHistoryLenght()
+        ) or (
+            self._isInFinalStateCondition(state if ObjectHelper.isNotNone(state) else self.state)
+        )
 
-    def getRewardWhileUpdating(self, fromState: State, toState: State, episode: ShouldBeEpisode) -> tuple:
-        willBeEpisodeMaxHistoryLenghtWhileUpdating: bool = episode.willBeMaxHistoryLenght()
-        isFinalState: bool = self.isFinalState(state=toState, episode=episode) or willBeEpisodeMaxHistoryLenghtWhileUpdating
-        return self.getReward(
-            fromState,
-            toState,
-            episode,
-            isFinalState,
-            willBeEpisodeMaxHistoryLenghtWhileUpdating=willBeEpisodeMaxHistoryLenghtWhileUpdating
-        ), isFinalState
+    def _isInFinalStateCondition(self, state: State = None, episode: ShouldBeEpisode = None) -> bool:
+        raise MethodNotImplementedException()
 
     def getReward(self,
         fromState: State,
         toState: State,
         episode: ShouldBeEpisode,
-        isFinalState: bool,
-        willBeEpisodeMaxHistoryLenghtWhileUpdating: bool = False
+        isFinalState: bool
     ):
         raise MethodNotImplementedException()
 
